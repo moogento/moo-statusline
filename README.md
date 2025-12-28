@@ -2,8 +2,6 @@
 
 A beautiful, informative statusline for Claude Code CLI that shows your project, git branch, model, context usage, and rate limit resets.
 
-![Statusline Preview](screenshot.png)
-
 ## Features
 
 - 🌿 **Git Integration** - Shows project name and current branch (highlighted in green)
@@ -16,11 +14,11 @@ A beautiful, informative statusline for Claude Code CLI that shows your project,
 ## What It Looks Like
 
 ```
-m2-moo 🌿 main | sonnet 4 | 97k/170k | [███░░░░░░░] 64% ♻️ 8pm 2h37m
+repo 🌿 main | sonnet 4 | 97k/170k | [███░░░░░░░] 64% ♻️ 8pm 2h37m
 ```
 
 **Breakdown:**
-- `m2-moo 🌿 main` - Project name + git branch (branch in green #74BE33)
+- `repo 🌿 main` - Project name + git branch (branch in green #74BE33)
 - `sonnet 4` - Current model
 - `97k/170k` - Tokens remaining / auto-compact threshold
 - `[███░░░░░░░] 64%` - Context usage bar + percentage remaining
@@ -32,7 +30,7 @@ m2-moo 🌿 main | sonnet 4 | 97k/170k | [███░░░░░░░] 64% �
 
 ```bash
 # 1. Download the statusline script
-curl -o ~/.claude/statusline.sh https://raw.githubusercontent.com/moojet/moo-statusline/main/statusline.sh
+curl -o ~/.claude/statusline.sh https://raw.githubusercontent.com/moogento/moo-statusline/main/statusline.sh
 chmod +x ~/.claude/statusline.sh
 
 # 2. Add to your Claude Code settings
