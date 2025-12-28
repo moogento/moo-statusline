@@ -154,8 +154,8 @@ if [ -n "$usage_json" ]; then
 
     # Calculate reset time
     if [ -n "$five_hour_reset" ]; then
-        # Parse ISO timestamp
-        reset_epoch=$(date -j -f "%Y-%m-%dT%H:%M:%S" "${five_hour_reset%%.*}" +%s 2>/dev/null || \
+        # Parse ISO timestamp as UTC (API returns UTC time)
+        reset_epoch=$(TZ=UTC date -j -f "%Y-%m-%dT%H:%M:%S" "${five_hour_reset%%.*}" +%s 2>/dev/null || \
                       date -d "${five_hour_reset}" +%s 2>/dev/null)
         now_epoch=$(date +%s)
 
