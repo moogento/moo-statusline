@@ -1,28 +1,36 @@
 # Moo Statusline for Claude Code
 
-A beautiful, informative statusline for Claude Code CLI that shows your project, git branch, model, context usage, and rate limit resets.
+A beautiful, informative statusline for Claude Code CLI that shows your project, git branch, model, context usage, and **real-time rate limit tracking** via the Anthropic API.
 
 ## Features
 
 - 🌿 **Git Integration** - Shows project name and current branch (highlighted in green)
-- 🤖 **Model Display** - Simplified model names (sonnet 4, opus 4, haiku 3.5, etc.)
-- 📊 **Context Tracking** - Visual progress bar showing context window usage
-- ⏰ **Rate Limit Timer** - Countdown to next rate limit reset (5am/10am/3pm/8pm)
-- 🎨 **Custom Colors** - Green branch highlight, dark grey pipes, grey text
-- 📈 **Smart Metrics** - Shows tokens remaining before auto-compact
+- 🤖 **Model Display** - Simplified model names (sonnet 4.5, opus 4.5, haiku, etc.)
+- 📊 **Context Tracking** - Shows current usage vs auto-compact threshold (e.g., `ctx:97k/170k`)
+- ⚡ **Live Rate Limit Data** - Real 5-hour usage from Anthropic API with visual progress bar
+- ⏰ **Smart Reset Timer** - Displays next reset time and countdown (e.g., `♻️ 9pm 1h43m`)
+- 🎨 **Color-Coded Warnings** - Orange/red alerts when context or rate limits are high
+- 📈 **Weekly Usage** - Optional 7-day usage percentage when available
 
 ## What It Looks Like
 
 ```
-repo 🌿 main | sonnet 4 | 97k/170k | [███░░░░░░░] 64% ♻️ 8pm 2h37m
+repo 🌿 main | sonnet 4.5 | ctx:97k/170k | [██░░░░░░░░] 5h:24% used ♻️ 9pm 1h43m
 ```
 
 **Breakdown:**
 - `repo 🌿 main` - Project name + git branch (branch in green #74BE33)
-- `sonnet 4` - Current model
-- `97k/170k` - Tokens remaining / auto-compact threshold
-- `[███░░░░░░░] 64%` - Context usage bar + percentage remaining
-- `♻️ 8pm 2h37m` - Next rate limit reset time + countdown
+- `sonnet 4.5` - Current model (simplified from full model ID)
+- `ctx:97k/170k` - Current context usage / auto-compact threshold (always shown)
+  - Turns orange at 70%, red at 85%
+  - Shows `left:X%` warning when <10% remaining
+- `[██░░░░░░░░] 5h:24% used` - 5-hour rate limit usage from Anthropic API
+  - Visual bar + percentage
+  - Gray: <50%, Yellow: 50-79%, Red: ≥80%
+  - Shows `w:3%` if weekly data is available
+- `♻️ 9pm 1h43m` - Next reset time + countdown
+  - Green when <15 minutes remaining (almost reset!)
+  - Clean time format: `9pm` not `9:00pm`
 
 ## Installation
 
@@ -70,10 +78,12 @@ chmod +x ~/.claude/statusline.sh
 
 ## Requirements
 
-- Claude Code CLI (version 2.0.76 or later)
-- `jq` - JSON processor (install with: `brew install jq` on macOS)
-- Git (for branch display)
-- Bash shell
+- **Claude Code CLI** (version 2.0.76 or later)
+- **macOS** (for OAuth token retrieval via Keychain)
+- **jq** - JSON processor (install with: `brew install jq`)
+- **Git** (for branch display)
+- **Bash** shell
+- **Active Claude Code session** (must be logged in for API access)
 
 ## Customization
 
@@ -82,9 +92,12 @@ chmod +x ~/.claude/statusline.sh
 The statusline uses RGB color codes. You can customize these in the script:
 
 ```bash
-GRAY=$'\033[38;2;121;121;122m'     # #79797A - Main text
-DARK_GRAY=$'\033[38;2;74;74;74m'   # #4A4A4A - Pipe separators
-GREEN=$'\033[38;2;116;190;51m'     # #74BE33 - Git branch
+GRAY=$'\033[38;2;121;121;122m'          # #79797A - Main text
+DARK_GRAY=$'\033[38;2;74;74;74m'        # #4A4A4A - Pipe separators
+GREEN=$'\033[38;2;116;190;51m'          # #74BE33 - Git branch
+YELLOW=$'\033[38;2;255;193;7m'          # #FFC107 - Rate limit warning (50-79%)
+DARK_ORANGE=$'\033[38;2;204;122;0m'     # #CC7A00 - Context warning (70-84%)
+RED=$'\033[38;2;255;82;82m'             # #FF5252 - Critical (≥80% rate limit, ≥85% context)
 ```
 
 ### Auto-Compact Threshold
@@ -95,22 +108,37 @@ Default is 85% of context window. Adjust in the script:
 compact_threshold=$((window_size * 85 / 100))  # Change 85 to your preferred %
 ```
 
-### Rate Limit Reset Times
+### API Cache Duration
 
-The script calculates next reset based on Anthropic's schedule (5am, 10am, 3pm, 8pm). These are configured around line 96-103.
+The script caches Anthropic API responses for 30 seconds to avoid rate limits. Adjust if needed:
+
+```bash
+CACHE_MAX_AGE=30  # seconds
+```
 
 ## How It Works
 
 The statusline script:
 
-1. Receives JSON input from Claude Code via stdin
-2. Extracts model info, workspace directory, and context usage
-3. Detects git branch if in a git repository
-4. Calculates context remaining before auto-compact (default: 85% of window)
-5. Shows percentage remaining (not used) for easier mental math
-6. Calculates time until next rate limit reset
-7. Formats everything with ANSI color codes
-8. Outputs a single line to stdout
+1. **Receives JSON input** from Claude Code via stdin (model info, workspace, context usage)
+2. **Detects git branch** if in a git repository
+3. **Fetches real usage data** from Anthropic OAuth API:
+   - Retrieves OAuth token from macOS Keychain (`security find-generic-password`)
+   - Calls `https://api.anthropic.com/api/oauth/usage` for live rate limit data
+   - Caches results for 30 seconds to avoid API rate limits
+4. **Parses API response** for:
+   - `five_hour.utilization` - Current 5-hour usage percentage
+   - `five_hour.resets_at` - UTC timestamp of next reset
+   - `seven_day.utilization` - Weekly usage (if available)
+5. **Calculates context usage**:
+   - Shows current tokens vs auto-compact threshold (85% of window)
+   - Converts to k format (e.g., `97k/170k`)
+   - Color-codes based on usage level
+6. **Formats reset time**:
+   - Parses UTC timestamp and converts to local time
+   - Shows clean format: `9pm` instead of `9:00pm`
+   - Rounds `:59` minutes up to next hour for clarity
+7. **Outputs colored statusline** with ANSI RGB codes
 
 Claude Code refreshes the statusline automatically every ~300ms.
 
@@ -141,6 +169,45 @@ Claude Code refreshes the statusline automatically every ~300ms.
 
 5. **Restart Claude Code completely**
 
+### Rate limit showing as `[░░░░░░░░░░] --%`?
+
+This means the API call is failing. Check:
+
+1. **Verify you're logged in to Claude Code:**
+   ```bash
+   claude status
+   ```
+
+2. **Check OAuth token is accessible:**
+   ```bash
+   security find-generic-password -s "Claude Code-credentials" -w
+   ```
+   Should return JSON with OAuth credentials.
+
+3. **Test API access manually:**
+   ```bash
+   # Get token
+   TOKEN=$(security find-generic-password -s "Claude Code-credentials" -w | jq -r '.claudeAiOauth.accessToken')
+
+   # Test API
+   curl -s "https://api.anthropic.com/api/oauth/usage" \
+     -H "Authorization: Bearer $TOKEN" \
+     -H "anthropic-beta: oauth-2025-04-20"
+   ```
+
+4. **Check cache file:**
+   ```bash
+   cat /tmp/claude-usage-cache.json
+   ```
+   If corrupted, delete it: `rm /tmp/claude-usage-cache.json`
+
+### Reset time showing wrong timezone?
+
+The script uses `TZ=UTC` for parsing and `LC_TIME=C` for formatting. If times are still wrong, verify your system timezone:
+```bash
+date +%Z
+```
+
 ### Escape codes showing as literal text?
 
 Your terminal or Claude Code version may not support ANSI escape sequences. Try removing the color codes or updating to the latest Claude Code version.
@@ -165,7 +232,10 @@ Created for the Claude Code community. Inspired by the need for better context a
 ---
 
 **Tips:**
-- The statusline updates automatically as you work
-- Watch the context percentage to know when auto-compact will happen
-- Use the rate limit timer to plan long conversations
-- Customize colors to match your terminal theme
+- The statusline updates automatically as you work (~300ms refresh)
+- Watch `ctx:` values turn orange/red to know when auto-compact is approaching
+- Monitor the 5-hour rate limit bar to pace your usage
+- Green reset timer (<15min) means you're almost back to full capacity
+- Weekly usage (`w:X%`) helps track longer-term patterns
+- Cache refreshes every 30 seconds to keep data current without hammering the API
+- Times are shown cleanly: `9pm` instead of `9:00pm`, `:59` rounds to next hour
