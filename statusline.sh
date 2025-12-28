@@ -86,8 +86,8 @@ if command -v npx &> /dev/null; then
     
     if [ -n "$block_json" ]; then
         # Extract block data
-        block_start=$(echo "$block_json" | jq -r '.start_time // empty')
-        total_cost=$(echo "$block_json" | jq -r '.total_cost // 0')
+        block_start=$(echo "$block_json" | jq -r '.startTime // empty')
+        total_cost=$(echo "$block_json" | jq -r '.costUSD // 0')
         
         if [ -n "$block_start" ]; then
             # Calculate time remaining in 5-hour window
