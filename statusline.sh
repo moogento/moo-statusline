@@ -62,23 +62,40 @@ elif [[ "$model_id" == *"haiku"* ]]; then
 fi
 model_name="${GRAY}${model_name_raw}${RESET}"
 
-# Context window usage
+# Rate limit and context tracking
 context_window=$(echo "$input" | jq ".context_window")
 window_size=$(echo "$context_window" | jq -r ".context_window_size // 200000")
 current_usage=$(echo "$context_window" | jq ".current_usage")
 
+# Get session totals for rate limit tracking
+total_input=$(echo "$context_window" | jq -r ".total_input_tokens // 0")
+total_output=$(echo "$context_window" | jq -r ".total_output_tokens // 0")
+
 usage_display=""
 if [ "$current_usage" != "null" ]; then
+    # Context window calculation (for auto-compact)
     input_tokens=$(echo "$current_usage" | jq -r ".input_tokens // 0")
     output_tokens=$(echo "$current_usage" | jq -r ".output_tokens // 0")
     cache_creation=$(echo "$current_usage" | jq -r ".cache_creation_input_tokens // 0")
     cache_read=$(echo "$current_usage" | jq -r ".cache_read_input_tokens // 0")
-
     current_total=$((input_tokens + output_tokens + cache_creation + cache_read))
 
-    if [ $window_size -gt 0 ] && [ $current_total -gt 0 ]; then
-        pct_used=$((current_total * 100 / window_size))
-        pct_remaining=$((100 - pct_used))
+    # Auto-compact threshold (85% of window size)
+    compact_threshold=$((window_size * 85 / 100))
+    remaining_to_compact=$((compact_threshold - current_total))
+    remaining_k=$((remaining_to_compact / 1000))
+    compact_threshold_k=$((compact_threshold / 1000))
+
+    # Rate limit calculation (5-hour period)
+    # Approximated limit: 411k tokens per period (based on 15% = 61k)
+    rate_limit=$((411 * 1000))
+    session_total=$((total_input + total_output))
+
+    if [ $rate_limit -gt 0 ] && [ $session_total -ge 0 ]; then
+        pct_used=$((session_total * 100 / rate_limit))
+        if [ $pct_used -gt 100 ]; then
+            pct_used=100
+        fi
         filled=$((pct_used / 10))
         empty=$((10 - filled))
 
@@ -90,15 +107,7 @@ if [ "$current_usage" != "null" ]; then
             bar="${bar}░"
         done
 
-        # Auto-compact threshold (85% of window size)
-        compact_threshold=$((window_size * 85 / 100))
-        remaining_to_compact=$((compact_threshold - current_total))
-
-        # Convert to k format
-        remaining_k=$((remaining_to_compact / 1000))
-        compact_threshold_k=$((compact_threshold / 1000))
-
-        usage_display="${GRAY}${remaining_k}k/${compact_threshold_k}k ${DARK_GRAY}|${GRAY} [${bar}] ${pct_remaining}%${RESET}"
+        usage_display="${GRAY}${remaining_k}k/${compact_threshold_k}k ${DARK_GRAY}|${GRAY} [${bar}] ${pct_used}%${RESET}"
     fi
 fi
 
