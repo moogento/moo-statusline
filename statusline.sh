@@ -141,16 +141,14 @@ if [ -n "$usage_json" ]; then
             bar_color="$GRAY"
         fi
 
-        usage_display="${bar_color}[${bar}] ${pct_int}%${RESET}"
-
-        # Add weekly if significant
+        # Always show daily and weekly percentages
+        weekly_int=0
         if [ -n "$weekly_pct" ]; then
             weekly_int=${weekly_pct%.*}
             [ -z "$weekly_int" ] && weekly_int=0
-            if [ $weekly_int -ge 50 ]; then
-                usage_display="${usage_display} ${DARK_GRAY}w:${GRAY}${weekly_int}%${RESET}"
-            fi
         fi
+
+        usage_display="${bar_color}[${bar}]${RESET} ${GRAY}d:${pct_int}% w:${weekly_int}%${RESET}"
     fi
 
     # Calculate reset time
@@ -194,7 +192,7 @@ if [ -z "$reset_display" ]; then
     reset_display="${GRAY}♻️ --${RESET}"
 fi
 
-# Context window (for auto-compact warning)
+# Context window (always show in k format)
 context_display=""
 context_window=$(echo "$input" | jq ".context_window")
 window_size=$(echo "$context_window" | jq -r ".context_window_size // 200000")
@@ -206,15 +204,24 @@ if [ "$current_usage" != "null" ]; then
     cache_read=$(echo "$current_usage" | jq -r ".cache_read_input_tokens // 0")
     current_total=$((input_tokens + cache_creation + cache_read))
 
+    # Auto-compact threshold (85% of window size)
+    compact_threshold=$((window_size * 85 / 100))
+
+    # Convert to k format
+    current_k=$((current_total / 1000))
+    compact_k=$((compact_threshold / 1000))
+
+    # Color based on usage percentage
     ctx_pct=$((current_total * 100 / window_size))
-    if [ $ctx_pct -ge 70 ]; then
-        if [ $ctx_pct -ge 85 ]; then
-            ctx_color="$RED"
-        else
-            ctx_color="$YELLOW"
-        fi
-        context_display="${ctx_color}ctx:${ctx_pct}%${RESET}"
+    if [ $ctx_pct -ge 85 ]; then
+        ctx_color="$RED"
+    elif [ $ctx_pct -ge 70 ]; then
+        ctx_color="$YELLOW"
+    else
+        ctx_color="$GRAY"
     fi
+
+    context_display="${ctx_color}ctx:${current_k}k/${compact_k}k${RESET}"
 fi
 
 # Output
