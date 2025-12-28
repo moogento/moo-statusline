@@ -142,13 +142,14 @@ if [ -n "$usage_json" ]; then
         fi
 
         # Always show daily and weekly percentages
-        weekly_int=0
-        if [ -n "$weekly_pct" ]; then
+        weekly_display="--"
+        if [ -n "$weekly_pct" ] && [ "$weekly_pct" != "null" ]; then
             weekly_int=${weekly_pct%.*}
             [ -z "$weekly_int" ] && weekly_int=0
+            weekly_display="${weekly_int}%"
         fi
 
-        usage_display="${bar_color}[${bar}]${RESET} ${GRAY}d:${pct_int}% w:${weekly_int}%${RESET}"
+        usage_display="${bar_color}[${bar}]${RESET} ${GRAY}d:${pct_int}% w:${weekly_display}${RESET}"
     fi
 
     # Calculate reset time
@@ -226,8 +227,10 @@ fi
 
 # Output
 PIPE="${DARK_GRAY} | ${RESET}"
-printf "%s%s%s%s%s %s" "$git_info" "$PIPE" "$model_name" "$PIPE" "$usage_display" "$reset_display"
+printf "%s%s%s" "$git_info" "$PIPE" "$model_name"
 
 if [ -n "$context_display" ]; then
     printf "%s%s" "$PIPE" "$context_display"
 fi
+
+printf "%s%s %s" "$PIPE" "$usage_display" "$reset_display"
