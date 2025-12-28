@@ -150,7 +150,7 @@ if [ -n "$usage_json" ]; then
             weekly_display=" w:${weekly_int}%"
         fi
 
-        usage_display="${bar_color}[${bar}]${RESET} ${GRAY}5h:${pct_int}%${weekly_display}${RESET}"
+        usage_display="${bar_color}[${bar}]${RESET} ${GRAY}5h:${pct_int}% used${weekly_display}${RESET}"
     fi
 
     # Calculate reset time
@@ -226,6 +226,17 @@ if [ "$current_usage" != "null" ]; then
     fi
 
     context_display="${GRAY}ctx:${ctx_color}${current_k}k/${compact_k}k${RESET}"
+
+    # Add warning when context remaining < 10%
+    remaining_pct=$((100 - ctx_pct))
+    if [ $remaining_pct -lt 10 ]; then
+        if [ $remaining_pct -lt 5 ]; then
+            warning_color="$RED"
+        else
+            warning_color="$DARK_ORANGE"
+        fi
+        context_display="${context_display} ${warning_color}left:${remaining_pct}%${RESET}"
+    fi
 fi
 
 # Output
