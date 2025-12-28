@@ -173,6 +173,8 @@ if [ -n "$usage_json" ]; then
 
                 # Extract time from reset for display (use C locale for clean formatting)
                 reset_time_str=$(LC_TIME=C date -r "$reset_epoch" "+%-I:%M%p" 2>/dev/null | tr 'A-Z' 'a-z')
+                # Trim :00 when on the hour (e.g., 9:00pm → 9pm)
+                reset_time_str=${reset_time_str/:00/}
 
                 # Color based on time remaining
                 total_minutes=$((hours * 60 + minutes))
