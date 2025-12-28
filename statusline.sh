@@ -81,8 +81,8 @@ fi
 # 5-hour block info from ccusage (the accurate source)
 block_display=""
 if command -v npx &> /dev/null; then
-    # Get block info - ccusage reads the actual JSONL logs
-    block_json=$(npx -y ccusage@latest blocks --json 2>/dev/null | jq -r '.blocks[0] // empty' 2>/dev/null)
+    # Get block info - ccusage reads the actual JSONL logs (get active block)
+    block_json=$(npx -y ccusage@latest blocks --json 2>/dev/null | jq -r '.blocks[] | select(.isActive == true)' 2>/dev/null)
     
     if [ -n "$block_json" ]; then
         # Extract block data
