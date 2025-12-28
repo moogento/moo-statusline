@@ -87,8 +87,8 @@ if [ "$current_usage" != "null" ]; then
     compact_threshold_k=$((compact_threshold / 1000))
 
     # Rate limit calculation (5-hour period)
-    # Approximated limit: 411k tokens per period (based on 15% = 61k)
-    rate_limit=$((411 * 1000))
+    # Approximated limit: 831k tokens per period (based on 16% = 133k)
+    rate_limit=$((831 * 1000))
     session_total=$((total_input + total_output))
 
     if [ $rate_limit -gt 0 ] && [ $session_total -ge 0 ]; then
