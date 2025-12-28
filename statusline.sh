@@ -141,15 +141,15 @@ if [ -n "$usage_json" ]; then
             bar_color="$GRAY"
         fi
 
-        # Always show daily and weekly percentages
-        weekly_display="--"
+        # Show daily and weekly (only if weekly data exists)
+        weekly_display=""
         if [ -n "$weekly_pct" ] && [ "$weekly_pct" != "null" ]; then
             weekly_int=${weekly_pct%.*}
             [ -z "$weekly_int" ] && weekly_int=0
-            weekly_display="${weekly_int}%"
+            weekly_display=" w:${weekly_int}%"
         fi
 
-        usage_display="${bar_color}[${bar}]${RESET} ${GRAY}d:${pct_int}% w:${weekly_display}${RESET}"
+        usage_display="${bar_color}[${bar}]${RESET} ${GRAY}d:${pct_int}%${weekly_display}${RESET}"
     fi
 
     # Calculate reset time
@@ -161,7 +161,12 @@ if [ -n "$usage_json" ]; then
 
         if [ -n "$reset_epoch" ]; then
             seconds_until=$((reset_epoch - now_epoch))
-            if [ $seconds_until -gt 0 ]; then
+
+            # If reset time has passed, clear cache to force refresh
+            if [ $seconds_until -le 0 ]; then
+                rm -f "$CACHE_FILE" 2>/dev/null
+                reset_display="${GRAY}♻️ refreshing...${RESET}"
+            else
                 hours=$((seconds_until / 3600))
                 minutes=$(((seconds_until % 3600) / 60))
 
@@ -178,8 +183,6 @@ if [ -n "$usage_json" ]; then
                 fi
 
                 reset_display="${time_color}♻️ ${reset_hour} ${hours}h${minutes}m${RESET}"
-            else
-                reset_display="${GREEN}♻️ now${RESET}"
             fi
         fi
     fi
