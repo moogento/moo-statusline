@@ -171,8 +171,10 @@ if [ -n "$usage_json" ]; then
                 hours=$((seconds_until / 3600))
                 minutes=$(((seconds_until % 3600) / 60))
 
+                # Add 1 minute to reset time for display (8:59:59pm → 9:00:00pm)
+                display_epoch=$((reset_epoch + 60))
                 # Extract time from reset for display (use C locale for clean formatting)
-                reset_time_str=$(LC_TIME=C date -r "$reset_epoch" "+%-I:%M%p" 2>/dev/null | tr 'A-Z' 'a-z')
+                reset_time_str=$(LC_TIME=C date -r "$display_epoch" "+%-I:%M%p" 2>/dev/null | tr 'A-Z' 'a-z')
                 # Trim :00 when on the hour (e.g., 9:00pm → 9pm)
                 reset_time_str=${reset_time_str/:00/}
 
