@@ -1,0 +1,8 @@
+To add a screenshot:
+
+1. Take a screenshot of your statusline in action
+2. Save as screenshot.png in this directory
+3. Delete this placeholder file
+4. Commit and push
+
+The README.md already references screenshot.png
