@@ -171,12 +171,31 @@ if [ -n "$usage_json" ]; then
                 hours=$((seconds_until / 3600))
                 minutes=$(((seconds_until % 3600) / 60))
 
-                # Add 1 minute to reset time for display (8:59:59pm → 9:00:00pm)
-                display_epoch=$((reset_epoch + 60))
-                # Extract time from reset for display (use C locale for clean formatting)
-                reset_time_str=$(LC_TIME=C date -r "$display_epoch" "+%-I:%M%p" 2>/dev/null | tr 'A-Z' 'a-z')
-                # Trim :00 when on the hour (e.g., 9:00pm → 9pm)
-                reset_time_str=${reset_time_str/:00/}
+                # Extract time components
+                reset_hour=$(LC_TIME=C date -r "$reset_epoch" "+%-I" 2>/dev/null)
+                reset_min=$(LC_TIME=C date -r "$reset_epoch" "+%M" 2>/dev/null)
+                reset_ampm=$(LC_TIME=C date -r "$reset_epoch" "+%p" 2>/dev/null | tr 'A-Z' 'a-z')
+
+                # If minutes are 59, round to next hour for cleaner display
+                if [ "$reset_min" = "59" ]; then
+                    reset_hour=$((reset_hour + 1))
+                    if [ $reset_hour -eq 13 ]; then
+                        reset_hour=1
+                        # Flip AM/PM at noon/midnight
+                        if [ "$reset_ampm" = "pm" ]; then
+                            reset_ampm="am"
+                        else
+                            reset_ampm="pm"
+                        fi
+                    fi
+                    reset_time_str="${reset_hour}${reset_ampm}"
+                elif [ "$reset_min" = "00" ]; then
+                    # On the hour, no minutes needed
+                    reset_time_str="${reset_hour}${reset_ampm}"
+                else
+                    # Show minutes
+                    reset_time_str="${reset_hour}:${reset_min}${reset_ampm}"
+                fi
 
                 # Color based on time remaining
                 total_minutes=$((hours * 60 + minutes))
