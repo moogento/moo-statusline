@@ -21,6 +21,7 @@ GRAY=$'\033[38;2;121;121;122m'
 DARK_GRAY=$'\033[38;2;74;74;74m'
 GREEN=$'\033[38;2;116;190;51m'
 YELLOW=$'\033[38;2;255;193;7m'
+DARK_ORANGE=$'\033[38;2;204;122;0m'  # Darker orange for context warning
 RED=$'\033[38;2;255;82;82m'
 RESET=$'\033[0m'
 
@@ -170,37 +171,18 @@ if [ -n "$usage_json" ]; then
                 hours=$((seconds_until / 3600))
                 minutes=$(((seconds_until % 3600) / 60))
 
-                # Extract hour from reset time for display (use C locale for clean formatting)
-                reset_hour_num=$(LC_TIME=C date -r "$reset_epoch" "+%-I" 2>/dev/null)
-                reset_min=$(LC_TIME=C date -r "$reset_epoch" "+%-M" 2>/dev/null)
-                reset_ampm=$(LC_TIME=C date -r "$reset_epoch" "+%p" 2>/dev/null | tr 'A-Z' 'a-z')
-
-                # Round up if >= 45 minutes (e.g., 8:59pm shows as 9pm)
-                if [ "$reset_min" -ge 45 ]; then
-                    reset_hour_num=$((reset_hour_num + 1))
-                    if [ $reset_hour_num -eq 13 ]; then
-                        reset_hour_num=1
-                        # Flip AM/PM
-                        if [ "$reset_ampm" = "pm" ]; then
-                            reset_ampm="am"
-                        else
-                            reset_ampm="pm"
-                        fi
-                    fi
-                fi
-
-                reset_hour="${reset_hour_num}${reset_ampm}"
+                # Extract time from reset for display (use C locale for clean formatting)
+                reset_time_str=$(LC_TIME=C date -r "$reset_epoch" "+%-I:%M%p" 2>/dev/null | tr 'A-Z' 'a-z')
 
                 # Color based on time remaining
-                if [ $hours -lt 1 ]; then
+                total_minutes=$((hours * 60 + minutes))
+                if [ $total_minutes -lt 15 ]; then
                     time_color="$GREEN"  # Almost reset!
-                elif [ $hours -lt 2 ]; then
-                    time_color="$YELLOW"
                 else
                     time_color="$GRAY"
                 fi
 
-                reset_display="${time_color}♻️ ${reset_hour} ${hours}h${minutes}m${RESET}"
+                reset_display="${time_color}♻️ ${reset_time_str} ${hours}h${minutes}m${RESET}"
             fi
         fi
     fi
@@ -233,17 +215,17 @@ if [ "$current_usage" != "null" ]; then
     current_k=$((current_total / 1000))
     compact_k=$((compact_threshold / 1000))
 
-    # Color based on usage percentage
+    # Color based on usage percentage (only color the values, not 'ctx:')
     ctx_pct=$((current_total * 100 / window_size))
     if [ $ctx_pct -ge 85 ]; then
         ctx_color="$RED"
     elif [ $ctx_pct -ge 70 ]; then
-        ctx_color="$YELLOW"
+        ctx_color="$DARK_ORANGE"
     else
         ctx_color="$GRAY"
     fi
 
-    context_display="${ctx_color}ctx:${current_k}k/${compact_k}k${RESET}"
+    context_display="${GRAY}ctx:${ctx_color}${current_k}k/${compact_k}k${RESET}"
 fi
 
 # Output
