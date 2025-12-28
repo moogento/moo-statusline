@@ -149,7 +149,7 @@ if [ -n "$usage_json" ]; then
             weekly_display=" w:${weekly_int}%"
         fi
 
-        usage_display="${bar_color}[${bar}]${RESET} ${GRAY}d:${pct_int}%${weekly_display}${RESET}"
+        usage_display="${bar_color}[${bar}]${RESET} ${GRAY}5h:${pct_int}%${weekly_display}${RESET}"
     fi
 
     # Calculate reset time
