@@ -170,8 +170,26 @@ if [ -n "$usage_json" ]; then
                 hours=$((seconds_until / 3600))
                 minutes=$(((seconds_until % 3600) / 60))
 
-                # Extract hour from reset time for display
-                reset_hour=$(date -j -f "%s" "$reset_epoch" "+%-I%p" 2>/dev/null | tr '[:upper:]' '[:lower:]')
+                # Extract hour from reset time for display (use C locale for clean formatting)
+                reset_hour_num=$(LC_TIME=C date -r "$reset_epoch" "+%-I" 2>/dev/null)
+                reset_min=$(LC_TIME=C date -r "$reset_epoch" "+%-M" 2>/dev/null)
+                reset_ampm=$(LC_TIME=C date -r "$reset_epoch" "+%p" 2>/dev/null | tr 'A-Z' 'a-z')
+
+                # Round up if >= 45 minutes (e.g., 8:59pm shows as 9pm)
+                if [ "$reset_min" -ge 45 ]; then
+                    reset_hour_num=$((reset_hour_num + 1))
+                    if [ $reset_hour_num -eq 13 ]; then
+                        reset_hour_num=1
+                        # Flip AM/PM
+                        if [ "$reset_ampm" = "pm" ]; then
+                            reset_ampm="am"
+                        else
+                            reset_ampm="pm"
+                        fi
+                    fi
+                fi
+
+                reset_hour="${reset_hour_num}${reset_ampm}"
 
                 # Color based on time remaining
                 if [ $hours -lt 1 ]; then
