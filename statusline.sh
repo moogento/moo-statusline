@@ -180,9 +180,17 @@ if [ -n "$usage_json" ]; then
                 # If minutes are 59, round to next hour for cleaner display
                 if [ "$reset_min" = "59" ]; then
                     reset_hour=$((reset_hour + 1))
-                    if [ $reset_hour -eq 13 ]; then
+                    # When going from 11:59 to 12:00, we cross noon or midnight
+                    if [ $reset_hour -eq 12 ]; then
+                        # Flip AM/PM when crossing noon (11:59 AM → 12:00 PM) or midnight (11:59 PM → 12:00 AM)
+                        if [ "$reset_ampm" = "pm" ]; then
+                            reset_ampm="am"
+                        else
+                            reset_ampm="pm"
+                        fi
+                    elif [ $reset_hour -eq 13 ]; then
+                        # This shouldn't happen with 12-hour format, but handle it just in case
                         reset_hour=1
-                        # Flip AM/PM at noon/midnight
                         if [ "$reset_ampm" = "pm" ]; then
                             reset_ampm="am"
                         else
