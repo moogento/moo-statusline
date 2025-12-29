@@ -19,7 +19,8 @@ fi
 # Color codes
 GRAY=$'\033[38;2;121;121;122m'
 DARK_GRAY=$'\033[38;2;74;74;74m'
-GREEN=$'\033[38;2;116;190;51m'
+GREEN=$'\033[38;2;116;190;51m'  # #74BE33 for branch
+DARK_GREEN=$'\033[38;2;53;117;0m'  # #357500 for reset icon
 YELLOW=$'\033[38;2;255;193;7m'
 DARK_ORANGE=$'\033[38;2;204;122;0m'  # Darker orange for context warning
 RED=$'\033[38;2;255;82;82m'
@@ -166,7 +167,7 @@ if [ -n "$usage_json" ]; then
             # If reset time has passed, clear cache to force refresh
             if [ $seconds_until -le 0 ]; then
                 rm -f "$CACHE_FILE" 2>/dev/null
-                reset_display="${GRAY}♻️ refreshing...${RESET}"
+                reset_display="${DARK_GREEN}↺ ${RESET}${GRAY}refreshing...${RESET}"
             else
                 hours=$((seconds_until / 3600))
                 minutes=$(((seconds_until % 3600) / 60))
@@ -205,7 +206,7 @@ if [ -n "$usage_json" ]; then
                     time_color="$GRAY"
                 fi
 
-                reset_display="${time_color}♻️ ${reset_time_str} ${hours}h${minutes}m${RESET}"
+                reset_display="${DARK_GREEN}↺ ${RESET}${time_color}${reset_time_str} ${hours}h${minutes}m${RESET}"
             fi
         fi
     fi
@@ -216,7 +217,7 @@ if [ -z "$usage_display" ]; then
     usage_display="${GRAY}[░░░░░░░░░░] --%${RESET}"
 fi
 if [ -z "$reset_display" ]; then
-    reset_display="${GRAY}♻️ --${RESET}"
+    reset_display="${DARK_GREEN}↺ ${RESET}${GRAY}--${RESET}"
 fi
 
 # Context window (always show in k format)
@@ -248,7 +249,7 @@ if [ "$current_usage" != "null" ]; then
         ctx_color="$GRAY"
     fi
 
-    context_display="${GRAY}ctx:${ctx_color}${current_k}k/${compact_k}k${RESET}"
+    context_display="${GRAY}⛁ ${ctx_color}${current_k}k/${compact_k}k${RESET}"
 
     # Add warning when context remaining < 10%
     remaining_pct=$((100 - ctx_pct))
