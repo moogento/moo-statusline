@@ -257,34 +257,34 @@ if [ "$current_usage" != "null" ]; then
     cache_read=$(echo "$current_usage" | jq -r ".cache_read_input_tokens // 0")
     current_total=$((input_tokens + cache_creation + cache_read))
 
-    # Auto-compact threshold (85% of window size)
-    compact_threshold=$((window_size * 85 / 100))
+    # Auto-compact threshold: context_window - 45K buffer
+    # All models have 200K context, compact triggers at ~155K
+    auto_compact_buffer=45000
+    compact_threshold=$((window_size - auto_compact_buffer))
 
-    # Convert to k format
+    # Convert to k format (round to nearest k)
     current_k=$((current_total / 1000))
-    compact_k=$((compact_threshold / 1000))
+    compact_k=$(( (compact_threshold + 500) / 1000 ))
+    window_k=$((window_size / 1000))
 
-    # Color based on usage percentage (only color the values, not 'ctx:')
-    ctx_pct=$((current_total * 100 / window_size))
-    if [ $ctx_pct -ge 85 ]; then
+    # Color based on proximity to auto-compact threshold
+    # Dark red: within 10k of compact threshold
+    # Dark orange: within 20k of compact threshold
+    remaining_k=$((compact_k - current_k))
+    if [ $remaining_k -le 10 ]; then
         ctx_color="$RED"
-    elif [ $ctx_pct -ge 70 ]; then
+    elif [ $remaining_k -le 20 ]; then
         ctx_color="$DARK_ORANGE"
     else
         ctx_color="$GRAY"
     fi
 
-    context_display="${GRAY}⛁ ${ctx_color}${current_k}k/${compact_k}k${RESET}"
+    # Format: current/compact(theoretical_max) with max in dark grey
+    context_display="${GRAY}⛁ ${ctx_color}${current_k}k/${compact_k}k${DARK_GRAY}(${window_k}k)${RESET}"
 
-    # Add warning when context remaining < 10%
-    remaining_pct=$((100 - ctx_pct))
-    if [ $remaining_pct -lt 10 ]; then
-        if [ $remaining_pct -lt 5 ]; then
-            warning_color="$RED"
-        else
-            warning_color="$DARK_ORANGE"
-        fi
-        context_display="${context_display} ${warning_color}left:${remaining_pct}%${RESET}"
+    # Add warning when very close to compact threshold
+    if [ $remaining_k -le 5 ] && [ $remaining_k -gt 0 ]; then
+        context_display="${context_display} ${RED}${remaining_k}k left${RESET}"
     fi
 fi
 
