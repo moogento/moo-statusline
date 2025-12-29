@@ -6,30 +6,30 @@ A beautiful, informative statusline for Claude Code CLI that shows your project,
 
 - 🌿 **Git Integration** - Shows project name and current branch (highlighted in green)
 - 🤖 **Model Display** - Simplified model names (sonnet 4.5, opus 4.5, haiku, etc.)
-- 📊 **Context Tracking** - Shows current usage vs auto-compact threshold (e.g., `ctx:97k/170k`)
+- 📊 **Context Tracking** - Shows current usage vs auto-compact threshold (e.g., `⛁ 97k/170k`)
 - ⚡ **Live Rate Limit Data** - Real 5-hour usage from Anthropic API with visual progress bar
-- ⏰ **Smart Reset Timer** - Displays next reset time and countdown (e.g., `♻️ 9pm 1h43m`)
+- ⏰ **Smart Reset Timer** - Displays next reset time and countdown (e.g., `↺ 9pm 1h43m`)
 - 🎨 **Color-Coded Warnings** - Orange/red alerts when context or rate limits are high
 - 📈 **Weekly Usage** - Optional 7-day usage percentage when available
 
 ## What It Looks Like
 
 ```
-repo 🌿 main | sonnet 4.5 | ctx:97k/170k | [██░░░░░░░░] 5h:24% used ♻️ 9pm 1h43m
+repo 🌿 main | sonnet 4.5 | ⛁ 97k/170k | [██░░░░░░░░] 5h:24% used ↺ 9pm 1h43m
 ```
 
 **Breakdown:**
 - `repo 🌿 main` - Project name + git branch (branch in green #74BE33)
 - `sonnet 4.5` - Current model (simplified from full model ID)
-- `ctx:97k/170k` - Current context usage / auto-compact threshold (always shown)
+- `⛁ 97k/170k` - Current context usage / auto-compact threshold (always shown)
   - Turns orange at 70%, red at 85%
   - Shows `left:X%` warning when <10% remaining
 - `[██░░░░░░░░] 5h:24% used` - 5-hour rate limit usage from Anthropic API
   - Visual bar + percentage
   - Gray: <50%, Yellow: 50-79%, Red: ≥80%
   - Shows `w:3%` if weekly data is available
-- `♻️ 9pm 1h43m` - Next reset time + countdown
-  - Green when <15 minutes remaining (almost reset!)
+- `↺ 9pm 1h43m` - Next reset time + countdown
+  - Icon in dark green (#357500)
   - Clean time format: `9pm` not `9:00pm`
 
 ## Installation
@@ -95,6 +95,7 @@ The statusline uses RGB color codes. You can customize these in the script:
 GRAY=$'\033[38;2;121;121;122m'          # #79797A - Main text
 DARK_GRAY=$'\033[38;2;74;74;74m'        # #4A4A4A - Pipe separators
 GREEN=$'\033[38;2;116;190;51m'          # #74BE33 - Git branch
+DARK_GREEN=$'\033[38;2;53;117;0m'       # #357500 - Reset icon (↺)
 YELLOW=$'\033[38;2;255;193;7m'          # #FFC107 - Rate limit warning (50-79%)
 DARK_ORANGE=$'\033[38;2;204;122;0m'     # #CC7A00 - Context warning (70-84%)
 RED=$'\033[38;2;255;82;82m'             # #FF5252 - Critical (≥80% rate limit, ≥85% context)
@@ -233,9 +234,9 @@ Created for the Claude Code community. Inspired by the need for better context a
 
 **Tips:**
 - The statusline updates automatically as you work (~300ms refresh)
-- Watch `ctx:` values turn orange/red to know when auto-compact is approaching
+- Watch `⛁` values turn orange/red to know when auto-compact is approaching
 - Monitor the 5-hour rate limit bar to pace your usage
-- Green reset timer (<15min) means you're almost back to full capacity
+- Dark green `↺` icon marks the reset timer
 - Weekly usage (`w:X%`) helps track longer-term patterns
 - Cache refreshes every 30 seconds to keep data current without hammering the API
 - Times are shown cleanly: `9pm` instead of `9:00pm`, `:59` rounds to next hour
