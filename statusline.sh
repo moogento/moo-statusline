@@ -189,12 +189,29 @@ if [ -n "$usage_json" ]; then
                             reset_ampm="pm"
                         fi
                     fi
-                    reset_time_str="${reset_hour}${reset_ampm}"
+                    # Handle 12:00 special cases
+                    if [ $reset_hour -eq 12 ]; then
+                        if [ "$reset_ampm" = "am" ]; then
+                            reset_time_str="midnight"
+                        else
+                            reset_time_str="midday"
+                        fi
+                    else
+                        reset_time_str="${reset_hour}${reset_ampm}"
+                    fi
                 elif [ "$reset_min" = "00" ]; then
-                    # On the hour, no minutes needed
-                    reset_time_str="${reset_hour}${reset_ampm}"
+                    # Handle 12:00 special cases
+                    if [ $reset_hour -eq 12 ]; then
+                        if [ "$reset_ampm" = "am" ]; then
+                            reset_time_str="midnight"
+                        else
+                            reset_time_str="midday"
+                        fi
+                    else
+                        reset_time_str="${reset_hour}${reset_ampm}"
+                    fi
                 else
-                    # Show minutes
+                    # Show minutes - no special handling needed for non-00 minutes
                     reset_time_str="${reset_hour}:${reset_min}${reset_ampm}"
                 fi
 
