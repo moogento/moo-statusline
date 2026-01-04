@@ -1,0 +1,5 @@
+{
+  "name": "moo-statusline",
+  "description": "Beautiful statusline showing git, model, context, and rate limits",
+  "version": "1.0.0"
+}

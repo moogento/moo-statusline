@@ -34,6 +34,18 @@ repo 🌿 main | sonnet 4.5 | ⛁ 97k/170k | [██░░░░░░░░] 5h
 
 ## Installation
 
+### Plugin Install (Recommended)
+
+```bash
+# 1. Add the plugin to Claude Code
+claude plugins add github:moogento/moo-statusline
+
+# 2. Run the setup command
+/statusline
+
+# 3. Restart Claude Code
+```
+
 ### Quick Install
 
 ```bash
