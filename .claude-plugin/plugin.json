@@ -1,5 +1,5 @@
 {
   "name": "moo-statusline",
-  "description": "Beautiful statusline showing git, model, context, and rate limits",
-  "version": "1.0.0"
+  "description": "Beautiful statusline showing git, model, context, and rate limits. Requires: jq, git, bash. Works on macOS and Linux.",
+  "version": "1.1.0"
 }

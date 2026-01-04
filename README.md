@@ -46,6 +46,24 @@ claude plugins add github:moogento/moo-statusline
 # 3. Restart Claude Code
 ```
 
+### Homebrew (macOS)
+
+```bash
+# 1. Tap and install
+brew tap moogento/moo-statusline
+brew install moo-statusline
+
+# 2. Add to your Claude Code settings (~/.claude/settings.json):
+{
+  "statusLine": {
+    "type": "command",
+    "command": "bash ~/.claude/statusline.sh"
+  }
+}
+
+# 3. Restart Claude Code
+```
+
 ### Quick Install
 
 ```bash
@@ -91,8 +109,12 @@ chmod +x ~/.claude/statusline.sh
 ## Requirements
 
 - **Claude Code CLI** (version 2.0.76 or later)
-- **macOS** (for OAuth token retrieval via Keychain)
-- **jq** - JSON processor (install with: `brew install jq`)
+- **macOS or Linux**
+  - macOS: Uses Keychain for OAuth token
+  - Linux: Uses `secret-tool` (GNOME Keyring) or `~/.claude/credentials.json`
+- **jq** - JSON processor
+  - macOS: `brew install jq`
+  - Linux: `apt install jq` or `yum install jq`
 - **Git** (for branch display)
 - **Bash** shell
 - **Active Claude Code session** (must be logged in for API access)
@@ -129,6 +151,17 @@ The script caches Anthropic API responses for 30 seconds to avoid rate limits. A
 CACHE_MAX_AGE=30  # seconds
 ```
 
+### Hide Segments
+
+You can hide specific segments using environment variables. Set these in your shell profile or Claude Code settings:
+
+```bash
+export MOO_HIDE_GIT=1      # Hide git branch
+export MOO_HIDE_CONTEXT=1  # Hide context usage
+export MOO_HIDE_WEEKLY=1   # Hide weekly percentage
+export MOO_HIDE_RESET=1    # Hide reset timer
+```
+
 ## How It Works
 
 The statusline script:
@@ -136,7 +169,8 @@ The statusline script:
 1. **Receives JSON input** from Claude Code via stdin (model info, workspace, context usage)
 2. **Detects git branch** if in a git repository
 3. **Fetches real usage data** from Anthropic OAuth API:
-   - Retrieves OAuth token from macOS Keychain (`security find-generic-password`)
+   - macOS: Retrieves OAuth token from Keychain (`security find-generic-password`)
+   - Linux: Uses `secret-tool` or `~/.claude/credentials.json`
    - Calls `https://api.anthropic.com/api/oauth/usage` for live rate limit data
    - Caches results for 30 seconds to avoid API rate limits
 4. **Parses API response** for:
@@ -224,6 +258,33 @@ date +%Z
 ### Escape codes showing as literal text?
 
 Your terminal or Claude Code version may not support ANSI escape sequences. Try removing the color codes or updating to the latest Claude Code version.
+
+### Shell/Terminal Issues
+
+**iTerm2**: Works out of the box. Ensure you're using a recent version.
+
+**Terminal.app (macOS)**: RGB colors require macOS 10.15+. Older versions may show incorrect colors.
+
+**tmux**: Add to your `.tmux.conf`:
+```bash
+set -g default-terminal "xterm-256color"
+set -ga terminal-overrides ",xterm-256color:Tc"
+```
+
+**screen**: RGB colors may not display correctly. Consider using tmux instead.
+
+**Linux terminals**: Most modern terminals (GNOME Terminal, Konsole, Alacritty) support RGB colors. If colors don't work, check your `$TERM` variable:
+```bash
+echo $TERM
+# Should be xterm-256color or similar
+```
+
+### API error indicator `[!]`?
+
+If you see `[!]` before the progress bar, the API call is failing but cached data is being displayed. Common causes:
+- OAuth token expired (re-login to Claude Code)
+- Network issues
+- API rate limiting
 
 ## Contributing
 

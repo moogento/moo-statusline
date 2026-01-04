@@ -1,5 +1,15 @@
 #!/bin/bash
 
+# Detect OS
+OS_TYPE=$(uname -s)
+
+# Configuration via environment variables
+# Set any of these to "1" to hide that segment
+# MOO_HIDE_GIT=1      - Hide git branch
+# MOO_HIDE_CONTEXT=1  - Hide context usage
+# MOO_HIDE_WEEKLY=1   - Hide weekly percentage
+# MOO_HIDE_RESET=1    - Hide reset timer
+
 # Read JSON input from stdin
 input=$(cat)
 
@@ -28,10 +38,12 @@ RESET=$'\033[0m'
 
 # Git branch info
 git_info="${GRAY}${project_name}${RESET}"
-if [ -d "$cwd/.git" ] || [ -d "$(dirname "$cwd")/.git" ]; then
-    git_branch=$(cd "$cwd" 2>/dev/null && git rev-parse --abbrev-ref HEAD 2>/dev/null)
-    if [ -n "$git_branch" ]; then
-        git_info="${GRAY}${project_name} 🌿 ${GREEN}${git_branch}${RESET}"
+if [ "$MOO_HIDE_GIT" != "1" ]; then
+    if [ -d "$cwd/.git" ] || [ -d "$(dirname "$cwd")/.git" ]; then
+        git_branch=$(cd "$cwd" 2>/dev/null && git rev-parse --abbrev-ref HEAD 2>/dev/null)
+        if [ -n "$git_branch" ]; then
+            git_info="${GRAY}${project_name} 🌿 ${GREEN}${git_branch}${RESET}"
+        fi
     fi
 fi
 
@@ -64,10 +76,22 @@ model_name="${GRAY}${model_name_raw}${RESET}"
 usage_display=""
 reset_display=""
 
-# Try to get OAuth token from Keychain (macOS)
+# Get OAuth token (OS-specific)
 get_oauth_token() {
     local creds
-    creds=$(security find-generic-password -s "Claude Code-credentials" -w 2>/dev/null)
+    if [ "$OS_TYPE" = "Darwin" ]; then
+        # macOS: use Keychain
+        creds=$(security find-generic-password -s "Claude Code-credentials" -w 2>/dev/null)
+    else
+        # Linux: try secret-tool (GNOME Keyring) or file-based fallback
+        if command -v secret-tool >/dev/null 2>&1; then
+            creds=$(secret-tool lookup service "Claude Code-credentials" 2>/dev/null)
+        fi
+        # Fallback: check for credentials file
+        if [ -z "$creds" ] && [ -f "$HOME/.claude/credentials.json" ]; then
+            creds=$(cat "$HOME/.claude/credentials.json" 2>/dev/null)
+        fi
+    fi
     if [ -n "$creds" ]; then
         echo "$creds" | jq -r '.claudeAiOauth.accessToken // empty' 2>/dev/null
     fi
@@ -77,11 +101,19 @@ get_oauth_token() {
 CACHE_FILE="/tmp/claude-usage-cache.json"
 CACHE_MAX_AGE=30  # seconds
 
+get_file_mtime() {
+    if [ "$OS_TYPE" = "Darwin" ]; then
+        stat -f %m "$1" 2>/dev/null || echo 0
+    else
+        stat -c %Y "$1" 2>/dev/null || echo 0
+    fi
+}
+
 should_refresh_cache() {
     if [ ! -f "$CACHE_FILE" ]; then
         return 0
     fi
-    local cache_age=$(($(date +%s) - $(stat -f %m "$CACHE_FILE" 2>/dev/null || echo 0)))
+    local cache_age=$(($(date +%s) - $(get_file_mtime "$CACHE_FILE")))
     [ $cache_age -gt $CACHE_MAX_AGE ]
 }
 
@@ -102,12 +134,16 @@ fetch_usage() {
 
 # Get usage data (from cache or API)
 usage_json=""
+api_error=false
 if should_refresh_cache; then
     usage_json=$(fetch_usage)
     if [ -n "$usage_json" ] && echo "$usage_json" | jq -e '.five_hour' >/dev/null 2>&1; then
         echo "$usage_json" > "$CACHE_FILE"
-    elif [ -f "$CACHE_FILE" ]; then
-        usage_json=$(cat "$CACHE_FILE")
+    else
+        api_error=true
+        if [ -f "$CACHE_FILE" ]; then
+            usage_json=$(cat "$CACHE_FILE")
+        fi
     fi
 else
     usage_json=$(cat "$CACHE_FILE" 2>/dev/null)
@@ -143,22 +179,31 @@ if [ -n "$usage_json" ]; then
             bar_color="$GRAY"
         fi
 
-        # Show daily and weekly (only if weekly data exists)
+        # Show daily and weekly (only if weekly data exists and not hidden)
         weekly_display=""
-        if [ -n "$weekly_pct" ] && [ "$weekly_pct" != "null" ]; then
+        if [ "$MOO_HIDE_WEEKLY" != "1" ] && [ -n "$weekly_pct" ] && [ "$weekly_pct" != "null" ]; then
             weekly_int=${weekly_pct%.*}
             [ -z "$weekly_int" ] && weekly_int=0
             weekly_display=" w:${weekly_int}%"
         fi
 
-        usage_display="${bar_color}[${bar}]${RESET} ${GRAY}5h:${pct_int}% used${weekly_display}${RESET}"
+        # Add error indicator if API is failing
+        error_indicator=""
+        if [ "$api_error" = true ]; then
+            error_indicator="${RED}[!]${RESET} "
+        fi
+
+        usage_display="${error_indicator}${bar_color}[${bar}]${RESET} ${GRAY}5h:${pct_int}% used${weekly_display}${RESET}"
     fi
 
     # Calculate reset time
-    if [ -n "$five_hour_reset" ]; then
+    if [ "$MOO_HIDE_RESET" != "1" ] && [ -n "$five_hour_reset" ]; then
         # Parse ISO timestamp as UTC (API returns UTC time)
-        reset_epoch=$(TZ=UTC date -j -f "%Y-%m-%dT%H:%M:%S" "${five_hour_reset%%.*}" +%s 2>/dev/null || \
-                      date -d "${five_hour_reset}" +%s 2>/dev/null)
+        if [ "$OS_TYPE" = "Darwin" ]; then
+            reset_epoch=$(TZ=UTC date -j -f "%Y-%m-%dT%H:%M:%S" "${five_hour_reset%%.*}" +%s 2>/dev/null)
+        else
+            reset_epoch=$(date -d "${five_hour_reset}" +%s 2>/dev/null)
+        fi
         now_epoch=$(date +%s)
 
         if [ -n "$reset_epoch" ]; then
@@ -172,10 +217,16 @@ if [ -n "$usage_json" ]; then
                 hours=$((seconds_until / 3600))
                 minutes=$(((seconds_until % 3600) / 60))
 
-                # Extract time components
-                reset_hour=$(LC_TIME=C date -r "$reset_epoch" "+%-I" 2>/dev/null)
-                reset_min=$(LC_TIME=C date -r "$reset_epoch" "+%M" 2>/dev/null)
-                reset_ampm=$(LC_TIME=C date -r "$reset_epoch" "+%p" 2>/dev/null | tr 'A-Z' 'a-z')
+                # Extract time components (OS-specific)
+                if [ "$OS_TYPE" = "Darwin" ]; then
+                    reset_hour=$(LC_TIME=C date -r "$reset_epoch" "+%-I" 2>/dev/null)
+                    reset_min=$(LC_TIME=C date -r "$reset_epoch" "+%M" 2>/dev/null)
+                    reset_ampm=$(LC_TIME=C date -r "$reset_epoch" "+%p" 2>/dev/null | tr 'A-Z' 'a-z')
+                else
+                    reset_hour=$(LC_TIME=C date -d "@$reset_epoch" "+%-I" 2>/dev/null)
+                    reset_min=$(LC_TIME=C date -d "@$reset_epoch" "+%M" 2>/dev/null)
+                    reset_ampm=$(LC_TIME=C date -d "@$reset_epoch" "+%p" 2>/dev/null | tr 'A-Z' 'a-z')
+                fi
 
                 # If minutes are 59, round to next hour for cleaner display
                 if [ "$reset_min" = "59" ]; then
@@ -247,11 +298,13 @@ fi
 
 # Context window (always show in k format)
 context_display=""
-context_window=$(echo "$input" | jq ".context_window")
-window_size=$(echo "$context_window" | jq -r ".context_window_size // 200000")
-current_usage=$(echo "$context_window" | jq ".current_usage")
+if [ "$MOO_HIDE_CONTEXT" != "1" ]; then
+    context_window=$(echo "$input" | jq ".context_window")
+    window_size=$(echo "$context_window" | jq -r ".context_window_size // 200000")
+    current_usage=$(echo "$context_window" | jq ".current_usage")
+fi
 
-if [ "$current_usage" != "null" ]; then
+if [ "$MOO_HIDE_CONTEXT" != "1" ] && [ "$current_usage" != "null" ]; then
     input_tokens=$(echo "$current_usage" | jq -r ".input_tokens // 0")
     cache_creation=$(echo "$current_usage" | jq -r ".cache_creation_input_tokens // 0")
     cache_read=$(echo "$current_usage" | jq -r ".cache_read_input_tokens // 0")
