@@ -2,6 +2,10 @@
 
 A beautiful, informative statusline for Claude Code CLI that shows your project, git branch, model, context usage, and **real-time rate limit tracking** via the Anthropic API.
 
+## Codex CLI
+
+For a Codex-oriented copy of the script, see `statusline-codex.sh` and `README-CODEX.md`.
+
 ## Features
 
 - 🌿 **Git Integration** - Shows project name and current branch (highlighted in green)
@@ -13,6 +17,8 @@ A beautiful, informative statusline for Claude Code CLI that shows your project,
 - 📈 **Weekly Usage** - Optional 7-day usage percentage when available
 
 ## What It Looks Like
+
+![Moo Statusline Screenshot](assets/moo-statusbar.png)
 
 ```
 repo 🌿 main | sonnet 4.5 | ⛁ 97k/170k | [██░░░░░░░░] 5h:24% used ↺ 9pm 1h43m
