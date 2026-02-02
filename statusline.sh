@@ -74,7 +74,6 @@ model_name="${GRAY}${model_name_raw}${RESET}"
 # Get REAL usage from Anthropic API
 # ============================================
 usage_display=""
-reset_display=""
 
 # Get OAuth token (OS-specific)
 get_oauth_token() {
@@ -154,6 +153,7 @@ if [ -n "$usage_json" ]; then
     five_hour_pct=$(echo "$usage_json" | jq -r '.five_hour.utilization // empty' 2>/dev/null)
     five_hour_reset=$(echo "$usage_json" | jq -r '.five_hour.resets_at // empty' 2>/dev/null)
     weekly_pct=$(echo "$usage_json" | jq -r '.seven_day.utilization // empty' 2>/dev/null)
+    weekly_reset=$(echo "$usage_json" | jq -r '.seven_day.resets_at // empty' 2>/dev/null)
 
     if [ -n "$five_hour_pct" ]; then
         # Round to integer
@@ -179,121 +179,163 @@ if [ -n "$usage_json" ]; then
             bar_color="$GRAY"
         fi
 
-        # Show daily and weekly (only if weekly data exists and not hidden)
-        weekly_display=""
-        if [ "$MOO_HIDE_WEEKLY" != "1" ] && [ -n "$weekly_pct" ] && [ "$weekly_pct" != "null" ]; then
-            weekly_int=${weekly_pct%.*}
-            [ -z "$weekly_int" ] && weekly_int=0
-            weekly_display=" w:${weekly_int}%"
-        fi
-
         # Add error indicator if API is failing
         error_indicator=""
         if [ "$api_error" = true ]; then
             error_indicator="${RED}[!]${RESET} "
         fi
 
-        usage_display="${error_indicator}${bar_color}[${bar}]${RESET} ${GRAY}5h:${pct_int}% used${weekly_display}${RESET}"
-    fi
-
-    # Calculate reset time
-    if [ "$MOO_HIDE_RESET" != "1" ] && [ -n "$five_hour_reset" ]; then
-        # Parse ISO timestamp as UTC (API returns UTC time)
-        if [ "$OS_TYPE" = "Darwin" ]; then
-            reset_epoch=$(TZ=UTC date -j -f "%Y-%m-%dT%H:%M:%S" "${five_hour_reset%%.*}" +%s 2>/dev/null)
-        else
-            reset_epoch=$(date -d "${five_hour_reset}" +%s 2>/dev/null)
-        fi
-        now_epoch=$(date +%s)
-
-        if [ -n "$reset_epoch" ]; then
-            seconds_until=$((reset_epoch - now_epoch))
-
-            # If reset time has passed, clear cache to force refresh
-            if [ $seconds_until -le 0 ]; then
-                rm -f "$CACHE_FILE" 2>/dev/null
-                reset_display="${DARK_GREEN}↺ ${RESET}${GRAY}refreshing...${RESET}"
+        # Calculate daily reset time and build daily display
+        daily_reset_str=""
+        if [ "$MOO_HIDE_RESET" != "1" ] && [ -n "$five_hour_reset" ]; then
+            if [ "$OS_TYPE" = "Darwin" ]; then
+                daily_reset_epoch=$(TZ=UTC date -j -f "%Y-%m-%dT%H:%M:%S" "${five_hour_reset%%.*}" +%s 2>/dev/null)
             else
-                hours=$((seconds_until / 3600))
-                minutes=$(((seconds_until % 3600) / 60))
+                daily_reset_epoch=$(date -d "${five_hour_reset}" +%s 2>/dev/null)
+            fi
+            now_epoch=$(date +%s)
 
-                # Extract time components (OS-specific)
-                if [ "$OS_TYPE" = "Darwin" ]; then
-                    reset_hour=$(LC_TIME=C date -r "$reset_epoch" "+%-I" 2>/dev/null)
-                    reset_min=$(LC_TIME=C date -r "$reset_epoch" "+%M" 2>/dev/null)
-                    reset_ampm=$(LC_TIME=C date -r "$reset_epoch" "+%p" 2>/dev/null | tr 'A-Z' 'a-z')
+            if [ -n "$daily_reset_epoch" ]; then
+                seconds_until=$((daily_reset_epoch - now_epoch))
+
+                if [ $seconds_until -le 0 ]; then
+                    rm -f "$CACHE_FILE" 2>/dev/null
+                    daily_reset_str=" ${DARK_GREEN}↺${RESET} ${GRAY}refreshing...${RESET}"
                 else
-                    reset_hour=$(LC_TIME=C date -d "@$reset_epoch" "+%-I" 2>/dev/null)
-                    reset_min=$(LC_TIME=C date -d "@$reset_epoch" "+%M" 2>/dev/null)
-                    reset_ampm=$(LC_TIME=C date -d "@$reset_epoch" "+%p" 2>/dev/null | tr 'A-Z' 'a-z')
-                fi
+                    hours=$((seconds_until / 3600))
+                    minutes=$(((seconds_until % 3600) / 60))
 
-                # If minutes are 59, round to next hour for cleaner display
-                if [ "$reset_min" = "59" ]; then
-                    reset_hour=$((reset_hour + 1))
-                    # When going from 11:59 to 12:00, we cross noon or midnight
-                    if [ $reset_hour -eq 12 ]; then
-                        # Flip AM/PM when crossing noon (11:59 AM → 12:00 PM) or midnight (11:59 PM → 12:00 AM)
-                        if [ "$reset_ampm" = "pm" ]; then
-                            reset_ampm="am"
-                        else
-                            reset_ampm="pm"
-                        fi
-                    elif [ $reset_hour -eq 13 ]; then
-                        # This shouldn't happen with 12-hour format, but handle it just in case
-                        reset_hour=1
-                        if [ "$reset_ampm" = "pm" ]; then
-                            reset_ampm="am"
-                        else
-                            reset_ampm="pm"
-                        fi
+                    # Extract time components
+                    if [ "$OS_TYPE" = "Darwin" ]; then
+                        reset_hour=$(LC_TIME=C date -r "$daily_reset_epoch" "+%-I" 2>/dev/null)
+                        reset_min=$(LC_TIME=C date -r "$daily_reset_epoch" "+%M" 2>/dev/null)
+                        reset_ampm=$(LC_TIME=C date -r "$daily_reset_epoch" "+%p" 2>/dev/null | tr 'A-Z' 'a-z')
+                    else
+                        reset_hour=$(LC_TIME=C date -d "@$daily_reset_epoch" "+%-I" 2>/dev/null)
+                        reset_min=$(LC_TIME=C date -d "@$daily_reset_epoch" "+%M" 2>/dev/null)
+                        reset_ampm=$(LC_TIME=C date -d "@$daily_reset_epoch" "+%p" 2>/dev/null | tr 'A-Z' 'a-z')
                     fi
-                    # Handle 12:00 special cases
-                    if [ $reset_hour -eq 12 ]; then
-                        if [ "$reset_ampm" = "am" ]; then
-                            reset_time_str="midnight"
+
+                    # Round :59 to next hour
+                    if [ "$reset_min" = "59" ]; then
+                        reset_hour=$((reset_hour + 1))
+                        if [ $reset_hour -eq 12 ]; then
+                            if [ "$reset_ampm" = "pm" ]; then reset_ampm="am"; else reset_ampm="pm"; fi
+                        elif [ $reset_hour -eq 13 ]; then
+                            reset_hour=1
+                            if [ "$reset_ampm" = "pm" ]; then reset_ampm="am"; else reset_ampm="pm"; fi
+                        fi
+                        if [ $reset_hour -eq 12 ]; then
+                            if [ "$reset_ampm" = "am" ]; then reset_time_str="midnight"; else reset_time_str="midday"; fi
                         else
-                            reset_time_str="midday"
+                            reset_time_str="${reset_hour}${reset_ampm}"
+                        fi
+                    elif [ "$reset_min" = "00" ]; then
+                        if [ $reset_hour -eq 12 ]; then
+                            if [ "$reset_ampm" = "am" ]; then reset_time_str="midnight"; else reset_time_str="midday"; fi
+                        else
+                            reset_time_str="${reset_hour}${reset_ampm}"
                         fi
                     else
-                        reset_time_str="${reset_hour}${reset_ampm}"
+                        reset_time_str="${reset_hour}:${reset_min}${reset_ampm}"
                     fi
-                elif [ "$reset_min" = "00" ]; then
-                    # Handle 12:00 special cases
-                    if [ $reset_hour -eq 12 ]; then
-                        if [ "$reset_ampm" = "am" ]; then
-                            reset_time_str="midnight"
-                        else
-                            reset_time_str="midday"
-                        fi
+
+                    # Color based on time remaining
+                    total_minutes=$((hours * 60 + minutes))
+                    if [ $total_minutes -lt 15 ]; then
+                        time_color="$GREEN"
                     else
-                        reset_time_str="${reset_hour}${reset_ampm}"
+                        time_color="$GRAY"
                     fi
-                else
-                    # Show minutes - no special handling needed for non-00 minutes
-                    reset_time_str="${reset_hour}:${reset_min}${reset_ampm}"
-                fi
 
-                # Color based on time remaining
-                total_minutes=$((hours * 60 + minutes))
-                if [ $total_minutes -lt 15 ]; then
-                    time_color="$GREEN"  # Almost reset!
-                else
-                    time_color="$GRAY"
+                    daily_reset_str=" ${DARK_GREEN}↺${RESET} ${time_color}${reset_time_str}.${hours}h${minutes}m${RESET}"
                 fi
-
-                reset_display="${DARK_GREEN}↺ ${RESET}${time_color}${reset_time_str} ${hours}h${minutes}m${RESET}"
             fi
         fi
+
+        # Build weekly display (percentage always, reset info only when >=85%)
+        weekly_display=""
+        if [ "$MOO_HIDE_WEEKLY" != "1" ] && [ -n "$weekly_pct" ] && [ "$weekly_pct" != "null" ]; then
+            weekly_int=${weekly_pct%.*}
+            [ -z "$weekly_int" ] && weekly_int=0
+
+            weekly_reset_str=""
+            # Show weekly reset info only when usage >= 85%
+            if [ $weekly_int -ge 85 ] && [ -n "$weekly_reset" ] && [ "$weekly_reset" != "null" ]; then
+                if [ "$OS_TYPE" = "Darwin" ]; then
+                    weekly_reset_epoch=$(TZ=UTC date -j -f "%Y-%m-%dT%H:%M:%S" "${weekly_reset%%.*}" +%s 2>/dev/null)
+                else
+                    weekly_reset_epoch=$(date -d "${weekly_reset}" +%s 2>/dev/null)
+                fi
+
+                if [ -n "$weekly_reset_epoch" ]; then
+                    now_epoch=$(date +%s)
+                    seconds_until=$((weekly_reset_epoch - now_epoch))
+
+                    if [ $seconds_until -gt 0 ]; then
+                        days=$((seconds_until / 86400))
+                        hours=$(((seconds_until % 86400) / 3600))
+                        minutes=$(((seconds_until % 3600) / 60))
+
+                        # Get date and time for weekly reset
+                        if [ "$OS_TYPE" = "Darwin" ]; then
+                            weekly_date=$(LC_TIME=C date -r "$weekly_reset_epoch" "+%-d%b" 2>/dev/null)
+                            weekly_hour=$(LC_TIME=C date -r "$weekly_reset_epoch" "+%-I" 2>/dev/null)
+                            weekly_min=$(LC_TIME=C date -r "$weekly_reset_epoch" "+%M" 2>/dev/null)
+                            weekly_ampm=$(LC_TIME=C date -r "$weekly_reset_epoch" "+%p" 2>/dev/null | tr 'A-Z' 'a-z')
+                        else
+                            weekly_date=$(LC_TIME=C date -d "@$weekly_reset_epoch" "+%-d%b" 2>/dev/null)
+                            weekly_hour=$(LC_TIME=C date -d "@$weekly_reset_epoch" "+%-I" 2>/dev/null)
+                            weekly_min=$(LC_TIME=C date -d "@$weekly_reset_epoch" "+%M" 2>/dev/null)
+                            weekly_ampm=$(LC_TIME=C date -d "@$weekly_reset_epoch" "+%p" 2>/dev/null | tr 'A-Z' 'a-z')
+                        fi
+
+                        # Round :59 to next hour for weekly time
+                        if [ "$weekly_min" = "59" ]; then
+                            weekly_hour=$((weekly_hour + 1))
+                            if [ $weekly_hour -eq 12 ]; then
+                                if [ "$weekly_ampm" = "pm" ]; then weekly_ampm="am"; else weekly_ampm="pm"; fi
+                            elif [ $weekly_hour -eq 13 ]; then
+                                weekly_hour=1
+                                if [ "$weekly_ampm" = "pm" ]; then weekly_ampm="am"; else weekly_ampm="pm"; fi
+                            fi
+                            if [ $weekly_hour -eq 12 ]; then
+                                if [ "$weekly_ampm" = "am" ]; then weekly_time_str="midnight"; else weekly_time_str="midday"; fi
+                            else
+                                weekly_time_str="${weekly_hour}${weekly_ampm}"
+                            fi
+                        elif [ "$weekly_min" = "00" ]; then
+                            if [ $weekly_hour -eq 12 ]; then
+                                if [ "$weekly_ampm" = "am" ]; then weekly_time_str="midnight"; else weekly_time_str="midday"; fi
+                            else
+                                weekly_time_str="${weekly_hour}${weekly_ampm}"
+                            fi
+                        else
+                            weekly_time_str="${weekly_hour}:${weekly_min}${weekly_ampm}"
+                        fi
+
+                        # Build countdown string with days
+                        if [ $days -gt 0 ]; then
+                            countdown_str="${days}d${hours}h${minutes}m"
+                        else
+                            countdown_str="${hours}h${minutes}m"
+                        fi
+
+                        weekly_reset_str=" ${DARK_GREEN}↺${RESET} ${GRAY}${weekly_date}${weekly_time_str}.${countdown_str}${RESET}"
+                    fi
+                fi
+            fi
+
+            weekly_display="  ${GRAY}w:${weekly_int}%${weekly_reset_str}${RESET}"
+        fi
+
+        usage_display="${error_indicator}${bar_color}[${bar}]${RESET} ${GRAY}5h:${pct_int}% used${RESET}${daily_reset_str}${weekly_display}"
     fi
 fi
 
 # Fallback if API failed
 if [ -z "$usage_display" ]; then
-    usage_display="${GRAY}[░░░░░░░░░░] --%${RESET}"
-fi
-if [ -z "$reset_display" ]; then
-    reset_display="${DARK_GREEN}↺ ${RESET}${GRAY}--${RESET}"
+    usage_display="${GRAY}[░░░░░░░░░░] --% ${DARK_GREEN}↺${RESET} ${GRAY}--${RESET}"
 fi
 
 # Context window (always show in k format)
@@ -349,4 +391,4 @@ if [ -n "$context_display" ]; then
     printf "%s%s" "$PIPE" "$context_display"
 fi
 
-printf "%s%s %s" "$PIPE" "$usage_display" "$reset_display"
+printf "%s%s" "$PIPE" "$usage_display"
