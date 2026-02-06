@@ -9,7 +9,8 @@ For a Codex-oriented copy of the script, see `statusline-codex.sh` and `README-C
 ## Features
 
 - 🌿 **Git Integration** - Shows project name and current branch (highlighted in green)
-- 🤖 **Model Display** - Simplified model names (sonnet 4.5, opus 4.5, haiku, etc.)
+- 🤖 **Model Display** - Simplified model names with version (e.g., opus 4.6, sonnet 4.5, haiku 4)
+- 🪾 **Worktree Detection** - Shows worktree name in light brown when working in a git worktree
 - 📊 **Context Tracking** - Shows current usage vs auto-compact threshold (e.g., `⛁ 97k/170k`)
 - ⚡ **Live Rate Limit Data** - Real 5-hour usage from Anthropic API with visual progress bar
 - ⏰ **Smart Reset Timer** - Displays next reset time and countdown (e.g., `↺ 9pm 1h43m`)
@@ -21,12 +22,18 @@ For a Codex-oriented copy of the script, see `statusline-codex.sh` and `README-C
 ![Moo Statusline Screenshot](assets/moo-statusbar.png)
 
 ```
-repo 🌿 main | sonnet 4.5 | ⛁ 97k/170k | [██░░░░░░░░] 5h:24% used ↺ 9pm 1h43m
+repo 🌿 main | opus 4.6 | ⛁ 97k/170k | [██░░░░░░░░] 5h:24% used ↺9pm 1h43m
+```
+
+In a worktree:
+```
+repo 🌿 feature-branch 🪾 my-worktree | opus 4.6 | [██░░░░░░░░] 5h:24% used ↺9pm 1h43m
 ```
 
 **Breakdown:**
 - `repo 🌿 main` - Project name + git branch (branch in green #74BE33)
-- `sonnet 4.5` - Current model (simplified from full model ID)
+- `🪾 my-worktree` - Worktree name in light brown (only shown in git worktrees)
+- `opus 4.6` - Current model with version (auto-extracted from model ID)
 - `⛁ 97k/170k` - Current context usage / auto-compact threshold (always shown)
   - Turns orange at 70%, red at 85%
   - Shows `left:X%` warning when <10% remaining
@@ -34,7 +41,7 @@ repo 🌿 main | sonnet 4.5 | ⛁ 97k/170k | [██░░░░░░░░] 5h
   - Visual bar + percentage
   - Gray: <50%, Yellow: 50-79%, Red: ≥80%
   - Shows `w:3%` if weekly data is available
-- `↺ 9pm 1h43m` - Next reset time + countdown
+- `↺9pm 1h43m` - Next reset time + countdown
   - Icon in dark green (#357500)
   - Clean time format: `9pm` not `9:00pm`
 
@@ -138,6 +145,7 @@ GREEN=$'\033[38;2;116;190;51m'          # #74BE33 - Git branch
 DARK_GREEN=$'\033[38;2;53;117;0m'       # #357500 - Reset icon (↺)
 YELLOW=$'\033[38;2;255;193;7m'          # #FFC107 - Rate limit warning (50-79%)
 DARK_ORANGE=$'\033[38;2;204;122;0m'     # #CC7A00 - Context warning (70-84%)
+LIGHT_BROWN=$'\033[38;2;181;137;80m'   # #B58950 - Worktree name
 RED=$'\033[38;2;255;82;82m'             # #FF5252 - Critical (≥80% rate limit, ≥85% context)
 ```
 
@@ -173,7 +181,7 @@ export MOO_HIDE_RESET=1    # Hide reset timer
 The statusline script:
 
 1. **Receives JSON input** from Claude Code via stdin (model info, workspace, context usage)
-2. **Detects git branch** if in a git repository
+2. **Detects git branch** if in a git repository (and worktree if applicable)
 3. **Fetches real usage data** from Anthropic OAuth API:
    - macOS: Retrieves OAuth token from Keychain (`security find-generic-password`)
    - Linux: Uses `secret-tool` or `~/.claude/credentials.json`
@@ -207,7 +215,7 @@ Claude Code refreshes the statusline automatically every ~300ms.
 
 2. **Test the script manually:**
    ```bash
-   echo '{"model":{"display_name":"Sonnet","id":"claude-sonnet-4-5"},"workspace":{"current_dir":"'$PWD'"}}' | ~/.claude/statusline.sh
+   echo '{"model":{"display_name":"Opus","id":"claude-opus-4-6"},"workspace":{"current_dir":"'$PWD'"}}' | ~/.claude/statusline.sh
    ```
 
 3. **Verify settings.json syntax:**

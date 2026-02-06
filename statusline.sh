@@ -33,41 +33,43 @@ GREEN=$'\033[38;2;116;190;51m'  # #74BE33 for branch
 DARK_GREEN=$'\033[38;2;53;117;0m'  # #357500 for reset icon
 YELLOW=$'\033[38;2;255;193;7m'
 DARK_ORANGE=$'\033[38;2;204;122;0m'  # Darker orange for context warning
+LIGHT_BROWN=$'\033[38;2;181;137;80m'  # Light brown for worktree
 RED=$'\033[38;2;255;82;82m'
 RESET=$'\033[0m'
 
 # Git branch info
 git_info="${GRAY}${project_name}${RESET}"
 if [ "$MOO_HIDE_GIT" != "1" ]; then
-    if [ -d "$cwd/.git" ] || [ -d "$(dirname "$cwd")/.git" ]; then
+    if [ -d "$cwd/.git" ] || [ -d "$(dirname "$cwd")/.git" ] || [ -f "$cwd/.git" ]; then
         git_branch=$(cd "$cwd" 2>/dev/null && git rev-parse --abbrev-ref HEAD 2>/dev/null)
         if [ -n "$git_branch" ]; then
             git_info="${GRAY}${project_name} 🌿 ${GREEN}${git_branch}${RESET}"
+            # Detect worktree: git-common-dir differs from git-dir in a worktree
+            git_dir=$(cd "$cwd" 2>/dev/null && git rev-parse --git-dir 2>/dev/null)
+            git_common_dir=$(cd "$cwd" 2>/dev/null && git rev-parse --git-common-dir 2>/dev/null)
+            if [ -n "$git_dir" ] && [ -n "$git_common_dir" ] && [ "$git_dir" != "$git_common_dir" ]; then
+                worktree_name=$(basename "$cwd")
+                git_info="${git_info} ${LIGHT_BROWN}🪾 ${worktree_name}${RESET}"
+            fi
         fi
     fi
 fi
 
-# Simplify model name
+# Simplify model name: extract family and version from model_id
+# e.g. "claude-opus-4-6" → "opus 4.6", "claude-sonnet-4-5-20250929" → "sonnet 4.5"
 model_name_raw="$model_display"
-if [[ "$model_id" == *"sonnet"* ]]; then
-    if [[ "$model_id" == *"4-5"* ]]; then
-        model_name_raw="sonnet 4.5"
-    elif [[ "$model_id" == *"4"* ]]; then
-        model_name_raw="sonnet 4"
-    else
-        model_name_raw="sonnet"
+for family in sonnet opus haiku; do
+    if [[ "$model_id" == *"$family"* ]]; then
+        if [[ "$model_id" =~ $family-([0-9]+)-([0-9]+) ]]; then
+            model_name_raw="$family ${BASH_REMATCH[1]}.${BASH_REMATCH[2]}"
+        elif [[ "$model_id" =~ $family-([0-9]+) ]]; then
+            model_name_raw="$family ${BASH_REMATCH[1]}"
+        else
+            model_name_raw="$family"
+        fi
+        break
     fi
-elif [[ "$model_id" == *"opus"* ]]; then
-    if [[ "$model_id" == *"4-5"* ]]; then
-        model_name_raw="opus 4.5"
-    elif [[ "$model_id" == *"4"* ]]; then
-        model_name_raw="opus 4"
-    else
-        model_name_raw="opus"
-    fi
-elif [[ "$model_id" == *"haiku"* ]]; then
-    model_name_raw="haiku"
-fi
+done
 model_name="${GRAY}${model_name_raw}${RESET}"
 
 # ============================================
@@ -248,7 +250,7 @@ if [ -n "$usage_json" ]; then
                         time_color="$GRAY"
                     fi
 
-                    daily_reset_str=" ${DARK_GREEN}↺${RESET} ${time_color}${reset_time_str}.${hours}h${minutes}m${RESET}"
+                    daily_reset_str=" ${DARK_GREEN}↺${RESET}${time_color}${reset_time_str}.${hours}h${minutes}m${RESET}"
                 fi
             fi
         fi
