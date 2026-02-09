@@ -14,6 +14,9 @@ Usage: codex-statusline-watch.sh
 
 Watches the latest Codex rollout JSONL and renders a statusline on token_count events.
 
+Options:
+  --once           Render the latest token_count once and exit
+
 Env vars:
   CODEX_HOME        Override Codex home directory (default: ~/.codex)
   SESSIONS_DIR      Override sessions dir (default: $CODEX_HOME/sessions)
@@ -22,9 +25,16 @@ Env vars:
 EOF
 }
 
+MODE_ONCE=0
+
 if [ "${1:-}" = "--help" ] || [ "${1:-}" = "-h" ]; then
     usage
     exit 0
+fi
+
+if [ "${1:-}" = "--once" ]; then
+    MODE_ONCE=1
+    shift
 fi
 
 if ! command -v jq >/dev/null 2>&1; then
@@ -86,6 +96,15 @@ render_line() {
     fi
 }
 
+render_line_once() {
+    local json="$1"
+    local status
+    status=$(printf '%s\n' "$json" | bash "$STATUSLINE_SCRIPT" 2>/dev/null || true)
+    if [ -n "$status" ]; then
+        printf '%s\n' "$status"
+    fi
+}
+
 current_cwd=""
 current_model=""
 
@@ -96,6 +115,37 @@ while [ -z "$rollout_file" ]; do
 done
 
 bootstrap_context "$rollout_file"
+
+if [ "$MODE_ONCE" -eq 1 ]; then
+    payload=$(jq -c 'select(.type=="event_msg" and .payload.type=="token_count") | .payload' "$rollout_file" | tail -1)
+    if [ -z "$payload" ] || [ "$payload" = "null" ]; then
+        echo "No token_count events found in: $rollout_file" >&2
+        exit 2
+    fi
+
+    merged=$(printf '%s\n' "$payload" | jq -c --arg cwd "$current_cwd" --arg model "$current_model" '. + {cwd:$cwd, model:$model}' 2>/dev/null || true)
+    if [ -z "$merged" ]; then
+        echo "Failed to merge payload with cwd/model." >&2
+        exit 3
+    fi
+
+    render_line_once "$merged"
+    exit 0
+fi
+
+# Render a best-effort initial line so the terminal isn't blank until new events arrive.
+bootstrap_payload=$(tail -n "$BOOTSTRAP_LINES" "$rollout_file" 2>/dev/null | jq -c 'select(.type=="event_msg" and .payload.type=="token_count") | .payload' 2>/dev/null | tail -1)
+if [ -n "$bootstrap_payload" ] && [ "$bootstrap_payload" != "null" ]; then
+    bootstrap_merged=$(printf '%s\n' "$bootstrap_payload" | jq -c --arg cwd "$current_cwd" --arg model "$current_model" '. + {cwd:$cwd, model:$model}' 2>/dev/null || true)
+    if [ -n "$bootstrap_merged" ]; then
+        render_line "$bootstrap_merged"
+    fi
+fi
+
+if [ -z "${bootstrap_merged:-}" ]; then
+    placeholder=$(jq -c -n --arg cwd "$current_cwd" --arg model "$current_model" '{cwd:$cwd, model:$model}')
+    render_line "$placeholder"
+fi
 
 trap 'printf "\n"; exit 0' INT TERM
 

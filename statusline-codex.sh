@@ -14,10 +14,10 @@ OS_TYPE=$(uname -s)
 input=$(cat)
 
 # Extract basic info (try multiple keys to be resilient)
-cwd=$(echo "$input" | jq -r ".cwd // .workspace.current_dir // .path // empty")
-model_id=$(echo "$input" | jq -r ".model.id // .model // empty")
-model_display=$(echo "$input" | jq -r ".model.display_name // .model_display_name // empty")
-project_dir=$(echo "$input" | jq -r ".workspace.project_dir // .project_dir // empty")
+cwd=$(echo "$input" | jq -r '.cwd // .workspace.current_dir? // .path // empty')
+model_id=$(echo "$input" | jq -r '(.model.id? // .model? // empty) | if type=="string" then . else empty end')
+model_display=$(echo "$input" | jq -r '(.model.display_name? // .model_display_name? // empty) | if type=="string" then . else empty end')
+project_dir=$(echo "$input" | jq -r '.workspace.project_dir? // .project_dir? // empty')
 
 if [ -z "$cwd" ] || [ "$cwd" = "null" ]; then
     cwd=$(pwd)
@@ -46,7 +46,7 @@ if [ "$MOO_HIDE_GIT" != "1" ] && [ -n "$cwd" ]; then
     if git -C "$cwd" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
         git_branch=$(git -C "$cwd" rev-parse --abbrev-ref HEAD 2>/dev/null)
         if [ -n "$git_branch" ]; then
-            git_info="${GRAY}${project_name} ${GREEN}${git_branch}${RESET}"
+            git_info="${GRAY}${project_name} 🌿 ${GREEN}${git_branch}${RESET}"
         fi
     fi
 fi
@@ -68,21 +68,22 @@ model_name="${GRAY}${model_name_raw:-model}${RESET}"
 # ============================================
 usage_display=""
 reset_display=""
+weekly_display=""
 
 # Context usage
 context_display=""
 current_total=""
 window_size=""
 if [ "$MOO_HIDE_CONTEXT" != "1" ]; then
-    current_total=$(echo "$input" | jq -r ".info.total_token_usage.total_tokens // empty")
+    current_total=$(echo "$input" | jq -r ".context_window.current_usage.total_tokens // .info.last_token_usage.total_tokens // empty")
     window_size=$(echo "$input" | jq -r ".info.model_context_window // empty")
 
     if [ -z "$current_total" ] || [ "$current_total" = "null" ]; then
-        input_tokens=$(echo "$input" | jq -r ".info.total_token_usage.input_tokens // .context_window.current_usage.input_tokens // 0")
-        cached_tokens=$(echo "$input" | jq -r ".info.total_token_usage.cached_input_tokens // .context_window.current_usage.cache_creation_input_tokens // 0")
+        input_tokens=$(echo "$input" | jq -r ".info.last_token_usage.input_tokens // .context_window.current_usage.input_tokens // 0")
+        cached_tokens=$(echo "$input" | jq -r ".info.last_token_usage.cached_input_tokens // .context_window.current_usage.cache_creation_input_tokens // 0")
         cache_read=$(echo "$input" | jq -r ".context_window.current_usage.cache_read_input_tokens // 0")
-        output_tokens=$(echo "$input" | jq -r ".info.total_token_usage.output_tokens // 0")
-        reasoning_tokens=$(echo "$input" | jq -r ".info.total_token_usage.reasoning_output_tokens // 0")
+        output_tokens=$(echo "$input" | jq -r ".info.last_token_usage.output_tokens // 0")
+        reasoning_tokens=$(echo "$input" | jq -r ".info.last_token_usage.reasoning_output_tokens // 0")
         current_total=$((input_tokens + cached_tokens + cache_read + output_tokens + reasoning_tokens))
     fi
 
@@ -105,7 +106,7 @@ if [ "$MOO_HIDE_CONTEXT" != "1" ] && [ -n "$current_total" ] && [ -n "$window_si
         ctx_color="$GRAY"
     fi
 
-    context_display="${GRAY}ctx ${ctx_color}${current_k}k/${window_k}k${RESET}"
+    context_display="${GRAY}⛁ ${ctx_color}${current_k}k/${window_k}k${RESET}"
     if [ $remaining_pct -le 10 ] && [ $remaining_pct -gt 0 ]; then
         context_display="${context_display} ${RED}left:${remaining_pct}%${RESET}"
     fi
@@ -127,8 +128,8 @@ if [ -n "$primary_pct" ] && [ "$primary_pct" != "null" ]; then
     [ $filled -lt 0 ] && filled=0 && empty=10
 
     bar=""
-    for ((i=0; i<filled; i++)); do bar+="#"; done
-    for ((i=0; i<empty; i++)); do bar+="."; done
+    for ((i=0; i<filled; i++)); do bar+="█"; done
+    for ((i=0; i<empty; i++)); do bar+="░"; done
 
     if [ $pct_int -ge 80 ]; then
         bar_color="$RED"
@@ -149,14 +150,13 @@ if [ -n "$primary_pct" ] && [ "$primary_pct" != "null" ]; then
         fi
     fi
 
-    weekly_display=""
     if [ "$MOO_HIDE_WEEKLY" != "1" ] && [ -n "$weekly_pct" ] && [ "$weekly_pct" != "null" ]; then
         weekly_int=${weekly_pct%.*}
         [ -z "$weekly_int" ] && weekly_int=0
-        weekly_display=" w:${weekly_int}%"
+        weekly_display=" ${GRAY}w:${weekly_int}%${RESET}"
     fi
 
-    usage_display="${bar_color}[${bar}]${RESET} ${GRAY}${window_label}:${pct_int}% used${weekly_display}${RESET}"
+    usage_display="${bar_color}[${bar}]${RESET} ${GRAY}${window_label}:${pct_int}% used${RESET}"
 fi
 
 # Reset display
@@ -166,7 +166,7 @@ if [ "$MOO_HIDE_RESET" != "1" ] && [ -n "$primary_reset" ] && [ "$primary_reset"
     seconds_until=$((reset_epoch - now_epoch))
 
     if [ $seconds_until -le 0 ]; then
-        reset_display="${DARK_GREEN}reset ${RESET}${GRAY}refreshing...${RESET}"
+        reset_display="${DARK_GREEN}↺${RESET} ${GRAY}refreshing...${RESET}"
     else
         hours=$((seconds_until / 3600))
         minutes=$(((seconds_until % 3600) / 60))
@@ -227,16 +227,16 @@ if [ "$MOO_HIDE_RESET" != "1" ] && [ -n "$primary_reset" ] && [ "$primary_reset"
             time_color="$GRAY"
         fi
 
-        reset_display="${DARK_GREEN}reset ${RESET}${time_color}${reset_time_str} ${hours}h${minutes}m${RESET}"
+        reset_display="${DARK_GREEN}↺${RESET}${time_color}${reset_time_str} ${hours}h${minutes}m${RESET}"
     fi
 fi
 
 # Fallbacks if data is missing
 if [ -z "$usage_display" ]; then
-    usage_display="${GRAY}[..........] --%${RESET}"
+    usage_display="${GRAY}[░░░░░░░░░░] --%${RESET}"
 fi
 if [ -z "$reset_display" ]; then
-    reset_display="${DARK_GREEN}reset ${RESET}${GRAY}--${RESET}"
+    reset_display="${DARK_GREEN}↺${RESET} ${GRAY}--${RESET}"
 fi
 
 # Output
@@ -247,4 +247,4 @@ if [ -n "$context_display" ]; then
     printf "%s%s" "$PIPE" "$context_display"
 fi
 
-printf "%s%s %s" "$PIPE" "$usage_display" "$reset_display"
+printf "%s%s %s%s" "$PIPE" "$usage_display" "$reset_display" "$weekly_display"

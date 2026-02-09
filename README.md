@@ -6,6 +6,18 @@ A beautiful, informative statusline for Claude Code CLI that shows your project,
 
 For a Codex-oriented copy of the script, see `statusline-codex.sh` and `README-CODEX.md`.
 
+Quick run:
+```bash
+chmod +x ./statusline-codex.sh
+echo '{"cwd":"'$PWD'","model":"gpt-5.2-codex","info":{"last_token_usage":{"total_tokens":6472},"model_context_window":258400},"rate_limits":{"primary":{"used_percent":24.0,"window_minutes":300,"resets_at":1767958180},"secondary":{"used_percent":3.0,"window_minutes":10080,"resets_at":1768212356}}}' | ./statusline-codex.sh
+```
+
+Live watcher (separate terminal):
+```bash
+chmod +x ./codex-statusline-watch.sh
+./codex-statusline-watch.sh
+```
+
 ## Features
 
 - 🌿 **Git Integration** - Shows project name and current branch (highlighted in green)
