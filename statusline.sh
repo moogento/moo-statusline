@@ -387,34 +387,71 @@ if [ "$MOO_HIDE_CONTEXT" != "1" ] && [ "$current_usage" != "null" ]; then
     cache_read=$(echo "$current_usage" | jq -r ".cache_read_input_tokens // 0")
     current_total=$((input_tokens + cache_creation + cache_read))
 
-    # Auto-compact threshold: context_window - 45K buffer
-    # All models have 200K context, compact triggers at ~155K
-    auto_compact_buffer=45000
-    compact_threshold=$((window_size - auto_compact_buffer))
-
-    # Convert to k format (round to nearest k)
-    current_k=$((current_total / 1000))
-    compact_k=$(( (compact_threshold + 500) / 1000 ))
-    window_k=$((window_size / 1000))
-
-    # Color based on proximity to auto-compact threshold
-    # Dark red: within 10k of compact threshold
-    # Dark orange: within 20k of compact threshold
-    remaining_k=$((compact_k - current_k))
-    if [ $remaining_k -le 10 ]; then
-        ctx_color="$RED"
-    elif [ $remaining_k -le 20 ]; then
-        ctx_color="$DARK_ORANGE"
-    else
-        ctx_color="$GRAY"
+    # Detect if auto-compact is disabled via project or global settings
+    auto_compact_disabled=false
+    if [ -n "$project_dir" ] && [ "$project_dir" != "null" ]; then
+        project_compact=$(jq -r 'if has("autoCompact") then .autoCompact | tostring else "unset" end' "$project_dir/.claude/settings.json" 2>/dev/null)
+        [ "$project_compact" = "false" ] && auto_compact_disabled=true
+    fi
+    if [ "$auto_compact_disabled" = false ]; then
+        global_compact=$(jq -r 'if has("autoCompact") then .autoCompact | tostring else "unset" end' "$HOME/.claude/settings.json" 2>/dev/null)
+        [ "$global_compact" = "false" ] && auto_compact_disabled=true
     fi
 
-    # Format: current/compact(theoretical_max) with max in dark grey
-    context_display="${GRAY}⛁ ${ctx_color}${current_k}k/${compact_k}k${DARK_GRAY}(${window_k}k)${RESET}"
+    # Convert to k format
+    current_k=$((current_total / 1000))
+    window_k=$((window_size / 1000))
 
-    # Add warning when very close to compact threshold
-    if [ $remaining_k -le 5 ] && [ $remaining_k -gt 0 ]; then
-        context_display="${context_display} ${RED}${remaining_k}k left${RESET}"
+    if [ "$auto_compact_disabled" = true ]; then
+        # No auto-compact: show current/max
+        remaining_pct=$(echo "$input" | jq -r '.context_window.remaining_percentage // 50')
+        remaining_pct_int=${remaining_pct%.*}
+        [ -z "$remaining_pct_int" ] && remaining_pct_int=50
+
+        if [ $remaining_pct_int -le 5 ]; then
+            ctx_color="$RED"
+        elif [ $remaining_pct_int -le 15 ]; then
+            ctx_color="$DARK_ORANGE"
+        else
+            ctx_color="$GRAY"
+        fi
+
+        context_display="${GRAY}⛁ ${ctx_color}${current_k}k/${window_k}k${RESET}"
+
+        if [ $remaining_pct_int -le 5 ] && [ $remaining_pct_int -gt 0 ]; then
+            remaining_k=$((window_k - current_k))
+            context_display="${context_display} ${RED}${remaining_k}k left${RESET}"
+        fi
+    else
+        # Auto-compact enabled: show current/compact(max)
+        # Use remaining_percentage from Claude Code to derive compact threshold
+        used_pct=$(echo "$input" | jq -r '.context_window.used_percentage // 0')
+        used_pct_int=${used_pct%.*}
+        [ -z "$used_pct_int" ] && used_pct_int=0
+
+        # Derive compact threshold from the ratio: used_pct = current_total / compact_threshold * 100
+        if [ $used_pct_int -gt 0 ] && [ $current_total -gt 0 ]; then
+            compact_threshold=$((current_total * 100 / used_pct_int))
+        else
+            # Fallback: window minus 45K buffer
+            compact_threshold=$((window_size - 45000))
+        fi
+        compact_k=$(( (compact_threshold + 500) / 1000 ))
+
+        remaining_k=$((compact_k - current_k))
+        if [ $remaining_k -le 10 ]; then
+            ctx_color="$RED"
+        elif [ $remaining_k -le 20 ]; then
+            ctx_color="$DARK_ORANGE"
+        else
+            ctx_color="$GRAY"
+        fi
+
+        context_display="${GRAY}⛁ ${ctx_color}${current_k}k/${compact_k}k${DARK_GRAY}(${window_k}k)${RESET}"
+
+        if [ $remaining_k -le 5 ] && [ $remaining_k -gt 0 ]; then
+            context_display="${context_display} ${RED}${remaining_k}k left${RESET}"
+        fi
     fi
 fi
 
