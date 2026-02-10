@@ -27,6 +27,7 @@ chmod +x ./codex-statusline-watch.sh
 - ⚡ **Live Rate Limit Data** - Real 5-hour usage from Anthropic API with visual progress bar
 - ⏰ **Smart Reset Timer** - Displays next reset time and countdown (e.g., `↺ 9pm 1h43m`)
 - 🎨 **Color-Coded Warnings** - Orange/red alerts when context or rate limits are high
+- 💰 **Extra Usage Tracking** - Shows extra usage progress bar and spend when 5-hour limit is reached
 - 📈 **Weekly Usage** - Optional 7-day usage percentage when available
 
 ## What It Looks Like
@@ -35,6 +36,11 @@ chmod +x ./codex-statusline-watch.sh
 
 ```
 repo 🌿 main | opus 4.6 | ⛁ 97k/170k | [██░░░░░░░░] 5h:24% used ↺9pm 1h43m
+```
+
+When 5-hour limit is reached with extra usage enabled:
+```
+repo 🌿 main | opus 4.6 | [█░░░░░░░░░] extra:12% used $515.00/$4250 | 5h:100% used ↺3pm.0h14m | w:63%
 ```
 
 In a worktree:
@@ -53,6 +59,7 @@ repo 🌿 feature-branch 🪾 my-worktree | opus 4.6 | [██░░░░░░
   - Visual bar + percentage
   - Gray: <50%, Yellow: 50-79%, Red: ≥80%
   - Shows `w:3%` if weekly data is available
+  - When 5h hits 100% and extra usage is enabled, shows extra usage bar (light orange) with dollar spend
 - `↺9pm 1h43m` - Next reset time + countdown
   - Icon in dark green (#357500)
   - Clean time format: `9pm` not `9:00pm`
@@ -158,6 +165,7 @@ DARK_GREEN=$'\033[38;2;53;117;0m'       # #357500 - Reset icon (↺)
 YELLOW=$'\033[38;2;255;193;7m'          # #FFC107 - Rate limit warning (50-79%)
 DARK_ORANGE=$'\033[38;2;204;122;0m'     # #CC7A00 - Context warning (70-84%)
 LIGHT_BROWN=$'\033[38;2;181;137;80m'   # #B58950 - Worktree name
+LIGHT_ORANGE=$'\033[38;2;255;179;71m'  # #FFB347 - Extra usage bar
 RED=$'\033[38;2;255;82;82m'             # #FF5252 - Critical (≥80% rate limit, ≥85% context)
 ```
 
@@ -203,6 +211,9 @@ The statusline script:
    - `five_hour.utilization` - Current 5-hour usage percentage
    - `five_hour.resets_at` - UTC timestamp of next reset
    - `seven_day.utilization` - Weekly usage (if available)
+   - `extra_usage.is_enabled` - Whether extra usage is active
+   - `extra_usage.utilization` - Extra usage percentage
+   - `extra_usage.used_credits` / `monthly_limit` - Dollar spend tracking
 5. **Calculates context usage**:
    - Shows current tokens vs auto-compact threshold (85% of window)
    - Converts to k format (e.g., `97k/170k`)

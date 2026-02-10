@@ -33,6 +33,7 @@ GREEN=$'\033[38;2;116;190;51m'  # #74BE33 for branch
 DARK_GREEN=$'\033[38;2;53;117;0m'  # #357500 for reset icon
 YELLOW=$'\033[38;2;255;193;7m'
 DARK_ORANGE=$'\033[38;2;204;122;0m'  # Darker orange for context warning
+LIGHT_ORANGE=$'\033[38;2;255;179;71m'  # Light orange for extra usage
 LIGHT_BROWN=$'\033[38;2;181;137;80m'  # Light brown for worktree
 RED=$'\033[38;2;255;82;82m'
 RESET=$'\033[0m'
@@ -156,6 +157,10 @@ if [ -n "$usage_json" ]; then
     five_hour_reset=$(echo "$usage_json" | jq -r '.five_hour.resets_at // empty' 2>/dev/null)
     weekly_pct=$(echo "$usage_json" | jq -r '.seven_day.utilization // empty' 2>/dev/null)
     weekly_reset=$(echo "$usage_json" | jq -r '.seven_day.resets_at // empty' 2>/dev/null)
+    extra_enabled=$(echo "$usage_json" | jq -r '.extra_usage.is_enabled // false' 2>/dev/null)
+    extra_utilization=$(echo "$usage_json" | jq -r '.extra_usage.utilization // empty' 2>/dev/null)
+    extra_used=$(echo "$usage_json" | jq -r '.extra_usage.used_credits // empty' 2>/dev/null)
+    extra_limit=$(echo "$usage_json" | jq -r '.extra_usage.monthly_limit // empty' 2>/dev/null)
 
     if [ -n "$five_hour_pct" ]; then
         # Round to integer
@@ -331,7 +336,35 @@ if [ -n "$usage_json" ]; then
             weekly_display="  ${GRAY}w:${weekly_int}%${weekly_reset_str}${RESET}"
         fi
 
-        usage_display="${error_indicator}${bar_color}[${bar}]${RESET} ${GRAY}5h:${pct_int}% used${RESET}${daily_reset_str}${weekly_display}"
+        # Build extra usage display when 5h is at 100% and extra usage is enabled
+        extra_display=""
+        if [ $pct_int -ge 100 ] && [ "$extra_enabled" = "true" ] && [ -n "$extra_utilization" ]; then
+            extra_int=${extra_utilization%.*}
+            [ -z "$extra_int" ] && extra_int=0
+
+            # Build extra usage progress bar
+            extra_filled=$((extra_int / 10))
+            extra_empty=$((10 - extra_filled))
+            [ $extra_filled -gt 10 ] && extra_filled=10 && extra_empty=0
+            [ $extra_filled -lt 0 ] && extra_filled=0 && extra_empty=10
+
+            extra_bar=""
+            for ((i=0; i<extra_filled; i++)); do extra_bar+="█"; done
+            for ((i=0; i<extra_empty; i++)); do extra_bar+="░"; done
+
+            # Format dollar amounts using awk to avoid locale issues
+            extra_used_fmt=$(LC_ALL=C awk "BEGIN{printf \"\$%.2f\", $extra_used}")
+            extra_limit_fmt=$(LC_ALL=C awk "BEGIN{printf \"\$%.0f\", $extra_limit}")
+
+            extra_display="${LIGHT_ORANGE}[${extra_bar}]${RESET} ${GRAY}extra:${extra_int}% used ${extra_used_fmt}/${extra_limit_fmt}${RESET} ${PIPE}"
+        fi
+
+        if [ -n "$extra_display" ]; then
+            # Extra usage mode: show extra bar first, then 5h without bar
+            usage_display="${error_indicator}${extra_display}${GRAY}5h:${pct_int}% used${RESET}${daily_reset_str}${weekly_display}"
+        else
+            usage_display="${error_indicator}${bar_color}[${bar}]${RESET} ${GRAY}5h:${pct_int}% used${RESET}${daily_reset_str}${weekly_display}"
+        fi
     fi
 fi
 
