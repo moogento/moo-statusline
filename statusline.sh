@@ -424,18 +424,8 @@ if [ "$MOO_HIDE_CONTEXT" != "1" ] && [ "$current_usage" != "null" ]; then
         fi
     else
         # Auto-compact enabled: show current/compact(max)
-        # Use remaining_percentage from Claude Code to derive compact threshold
-        used_pct=$(echo "$input" | jq -r '.context_window.used_percentage // 0')
-        used_pct_int=${used_pct%.*}
-        [ -z "$used_pct_int" ] && used_pct_int=0
-
-        # Derive compact threshold from the ratio: used_pct = current_total / compact_threshold * 100
-        if [ $used_pct_int -gt 0 ] && [ $current_total -gt 0 ]; then
-            compact_threshold=$((current_total * 100 / used_pct_int))
-        else
-            # Fallback: window minus 45K buffer
-            compact_threshold=$((window_size - 45000))
-        fi
+        # Claude Code triggers auto-compact at window_size - 45K
+        compact_threshold=$((window_size - 45000))
         compact_k=$(( (compact_threshold + 500) / 1000 ))
 
         remaining_k=$((compact_k - current_k))
