@@ -356,7 +356,7 @@ if [ -n "$usage_json" ]; then
             extra_used_fmt=$(LC_ALL=C awk "BEGIN{printf \"\$%.2f\", $extra_used/100}")
             extra_limit_fmt=$(LC_ALL=C awk "BEGIN{printf \"\$%.2f\", $extra_limit/100}")
 
-            extra_display="${LIGHT_ORANGE}[${extra_bar}]${RESET} ${GRAY}extra:${extra_int}% used ${extra_used_fmt}/${extra_limit_fmt}${RESET} ${PIPE}"
+            extra_display="${LIGHT_ORANGE}[${extra_bar}]${RESET} ${GRAY}extra:${extra_int}% used ${extra_used_fmt}/${extra_limit_fmt}${RESET}${DARK_GRAY} | ${RESET}"
         fi
 
         if [ -n "$extra_display" ]; then
