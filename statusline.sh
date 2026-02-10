@@ -353,8 +353,8 @@ if [ -n "$usage_json" ]; then
             for ((i=0; i<extra_empty; i++)); do extra_bar+="░"; done
 
             # Format dollar amounts using awk to avoid locale issues
-            extra_used_fmt=$(LC_ALL=C awk "BEGIN{printf \"\$%.2f\", $extra_used}")
-            extra_limit_fmt=$(LC_ALL=C awk "BEGIN{printf \"\$%.0f\", $extra_limit}")
+            extra_used_fmt=$(LC_ALL=C awk "BEGIN{printf \"\$%.2f\", $extra_used/100}")
+            extra_limit_fmt=$(LC_ALL=C awk "BEGIN{printf \"\$%.2f\", $extra_limit/100}")
 
             extra_display="${LIGHT_ORANGE}[${extra_bar}]${RESET} ${GRAY}extra:${extra_int}% used ${extra_used_fmt}/${extra_limit_fmt}${RESET} ${PIPE}"
         fi
