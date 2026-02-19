@@ -22,6 +22,7 @@ chmod +x ./codex-statusline-watch.sh
 
 - 🌿 **Git Integration** - Shows project name and current branch (highlighted in green)
 - 🤖 **Model Display** - Simplified model names with version (e.g., opus 4.6, sonnet 4.5, haiku 4)
+- 🧠 **Effort Indicator** - Shows thinking effort level as dots next to model name (●●• = medium)
 - 🪾 **Worktree Detection** - Shows worktree name in light brown when working in a git worktree
 - 📊 **Context Tracking** - Shows current usage vs auto-compact threshold (e.g., `⛁ 97k/170k`)
 - ⚡ **Live Rate Limit Data** - Real 5-hour usage from Anthropic API with visual progress bar
@@ -35,23 +36,26 @@ chmod +x ./codex-statusline-watch.sh
 ![Moo Statusline Screenshot](assets/moo-statusbar.png)
 
 ```
-repo 🌿 main | opus 4.6 | ⛁ 97k/170k | [██░░░░░░░░] 5h:24% used ↺9pm 1h43m
+repo 🌿 main | opus 4.6 ●●● | ⛁ 97k/170k | [██░░░░░░░░] 5h:24% used ↺9pm 1h43m
 ```
 
 When 5-hour limit is reached with extra usage enabled:
 ```
-repo 🌿 main | opus 4.6 | [█░░░░░░░░░] extra:12% used $515.00/$4250 | 5h:100% used ↺3pm.0h14m | w:63%
+repo 🌿 main | opus 4.6 ●●● | [█░░░░░░░░░] extra:12% used $515.00/$4250 | 5h:100% used ↺3pm.0h14m | w:63%
 ```
 
 In a worktree:
 ```
-repo 🌿 feature-branch 🪾 my-worktree | opus 4.6 | [██░░░░░░░░] 5h:24% used ↺9pm 1h43m
+repo 🌿 feature-branch 🪾 my-worktree | opus 4.6 ●●• | [██░░░░░░░░] 5h:24% used ↺9pm 1h43m
 ```
 
 **Breakdown:**
 - `repo 🌿 main` - Project name + git branch (branch in green #74BE33)
 - `🪾 my-worktree` - Worktree name in light brown (only shown in git worktrees)
-- `opus 4.6` - Current model with version (auto-extracted from model ID)
+- `opus 4.6 ●●•` - Current model with version and effort level dots
+  - `●●●` = high effort (default), `●●•` = medium, `●••` = low
+  - Only shown for thinking-capable models (opus/sonnet, not haiku)
+  - Reads from `/model` command, `CLAUDE_CODE_EFFORT_LEVEL` env var, or `alwaysThinkingEnabled` setting
 - `⛁ 97k/170k` - Current context usage / auto-compact threshold (always shown)
   - Turns orange at 70%, red at 85%
   - Shows `left:X%` warning when <10% remaining

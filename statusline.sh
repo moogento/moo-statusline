@@ -13,11 +13,13 @@ OS_TYPE=$(uname -s)
 # Read JSON input from stdin
 input=$(cat)
 
+
 # Extract basic info
 cwd=$(echo "$input" | jq -r ".workspace.current_dir // .cwd")
 model_id=$(echo "$input" | jq -r ".model.id")
 model_display=$(echo "$input" | jq -r ".model.display_name")
 project_dir=$(echo "$input" | jq -r ".workspace.project_dir // \"\"")
+transcript_path=$(echo "$input" | jq -r ".transcript_path // empty")
 
 # Determine project name
 if [ -n "$project_dir" ] && [ "$project_dir" != "null" ]; then
@@ -72,6 +74,46 @@ for family in sonnet opus haiku; do
     fi
 done
 model_name="${GRAY}${model_name_raw}${RESET}"
+
+# Model effort bars - only for thinking-capable models (opus/sonnet, not haiku)
+if [[ "$model_id" == *"opus"* ]] || [[ "$model_id" == *"sonnet"* ]]; then
+    effort_level="${CLAUDE_CODE_EFFORT_LEVEL:-}"
+    # Normalize numeric values: 1=low, 2=medium, 3=high
+    case "$effort_level" in
+        1) effort_level="low" ;;
+        2) effort_level="medium" ;;
+        3) effort_level="high" ;;
+    esac
+    # Read effort from transcript (/model command output)
+    if [ -z "$effort_level" ] && [ -n "$transcript_path" ] && [ -f "$transcript_path" ]; then
+        effort_level=$(tail -200 "$transcript_path" | grep -oE '(low|medium|high)\\\\u001b\[22m effort' | tail -1 | grep -oE '^(low|medium|high)')
+    fi
+    # Fall back to alwaysThinkingEnabled in settings
+    if [ -z "$effort_level" ]; then
+        thinking_enabled=false
+        if [ -n "$project_dir" ] && [ "$project_dir" != "null" ]; then
+            project_thinking=$(jq -r '.alwaysThinkingEnabled // false' "$project_dir/.claude/settings.json" 2>/dev/null)
+            [ "$project_thinking" = "true" ] && thinking_enabled=true
+        fi
+        if [ "$thinking_enabled" = "false" ]; then
+            global_thinking=$(jq -r '.alwaysThinkingEnabled // false' "$HOME/.claude/settings.json" 2>/dev/null)
+            [ "$global_thinking" = "true" ] && thinking_enabled=true
+        fi
+        [ "$thinking_enabled" = "true" ] && effort_level="high"
+    fi
+
+    case "$effort_level" in
+        low)    lit="●"   ; dim="●●" ;;
+        medium) lit="●●"  ; dim="●"  ;;
+        high)   lit="●●●" ; dim=""   ;;
+        *)      lit=""    ; dim=""   ;;
+    esac
+
+    if [ -n "$lit" ] || [ -n "$dim" ]; then
+        effort_bars="${GRAY}${lit}${DARK_GRAY}${dim}${RESET}"
+        model_name="${GRAY}${model_name_raw}${RESET} ${effort_bars}"
+    fi
+fi
 
 # ============================================
 # Get REAL usage from Anthropic API
