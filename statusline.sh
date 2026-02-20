@@ -86,7 +86,7 @@ if [[ "$model_id" == *"opus"* ]] || [[ "$model_id" == *"sonnet"* ]]; then
     esac
     # Read effort from transcript (/model command output)
     if [ -z "$effort_level" ] && [ -n "$transcript_path" ] && [ -f "$transcript_path" ]; then
-        effort_level=$(tail -200 "$transcript_path" | grep -oE '(low|medium|high)\\\\u001b\[22m effort' | tail -1 | grep -oE '^(low|medium|high)')
+        effort_level=$(tail -200 "$transcript_path" | grep -oE '(low|medium|high)\\u001b\[22m effort' | tail -1 | grep -oE '^(low|medium|high)')
     fi
     # Fall back to alwaysThinkingEnabled in settings
     if [ -z "$effort_level" ]; then
