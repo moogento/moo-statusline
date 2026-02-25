@@ -84,9 +84,14 @@ if [[ "$model_id" == *"opus"* ]] || [[ "$model_id" == *"sonnet"* ]]; then
         2) effort_level="medium" ;;
         3) effort_level="high" ;;
     esac
-    # Read effort from transcript (/model command output)
-    if [ -z "$effort_level" ] && [ -n "$transcript_path" ] && [ -f "$transcript_path" ]; then
-        effort_level=$(tail -200 "$transcript_path" | grep -oE '(low|medium|high)\\u001b\[22m effort' | tail -1 | grep -oE '^(low|medium|high)')
+    # Read effortLevel from settings (project overrides global)
+    if [ -z "$effort_level" ]; then
+        if [ -n "$project_dir" ] && [ "$project_dir" != "null" ]; then
+            effort_level=$(jq -r '.effortLevel // empty' "$project_dir/.claude/settings.json" 2>/dev/null)
+        fi
+        if [ -z "$effort_level" ]; then
+            effort_level=$(jq -r '.effortLevel // empty' "$HOME/.claude/settings.json" 2>/dev/null)
+        fi
     fi
     # Fall back to alwaysThinkingEnabled in settings
     if [ -z "$effort_level" ]; then
