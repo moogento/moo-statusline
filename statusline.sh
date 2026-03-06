@@ -333,12 +333,12 @@ if [ -n "$usage_json" ]; then
 
                         # Get date and time for weekly reset
                         if [ "$OS_TYPE" = "Darwin" ]; then
-                            weekly_date=$(LC_TIME=C date -r "$weekly_reset_epoch" "+%-d%b" 2>/dev/null)
+                            weekly_date=$(LC_TIME=C date -r "$weekly_reset_epoch" "+%-d%b" 2>/dev/null | tr 'A-Z' 'a-z')
                             weekly_hour=$(LC_TIME=C date -r "$weekly_reset_epoch" "+%-I" 2>/dev/null)
                             weekly_min=$(LC_TIME=C date -r "$weekly_reset_epoch" "+%M" 2>/dev/null)
                             weekly_ampm=$(LC_TIME=C date -r "$weekly_reset_epoch" "+%p" 2>/dev/null | tr 'A-Z' 'a-z')
                         else
-                            weekly_date=$(LC_TIME=C date -d "@$weekly_reset_epoch" "+%-d%b" 2>/dev/null)
+                            weekly_date=$(LC_TIME=C date -d "@$weekly_reset_epoch" "+%-d%b" 2>/dev/null | tr 'A-Z' 'a-z')
                             weekly_hour=$(LC_TIME=C date -d "@$weekly_reset_epoch" "+%-I" 2>/dev/null)
                             weekly_min=$(LC_TIME=C date -d "@$weekly_reset_epoch" "+%M" 2>/dev/null)
                             weekly_ampm=$(LC_TIME=C date -d "@$weekly_reset_epoch" "+%p" 2>/dev/null | tr 'A-Z' 'a-z')
@@ -354,13 +354,13 @@ if [ -n "$usage_json" ]; then
                                 if [ "$weekly_ampm" = "pm" ]; then weekly_ampm="am"; else weekly_ampm="pm"; fi
                             fi
                             if [ $weekly_hour -eq 12 ]; then
-                                if [ "$weekly_ampm" = "am" ]; then weekly_time_str="Midnight"; else weekly_time_str="Midday"; fi
+                                if [ "$weekly_ampm" = "am" ]; then weekly_time_str="midnight"; else weekly_time_str="midday"; fi
                             else
                                 weekly_time_str="${weekly_hour}${weekly_ampm}"
                             fi
                         elif [ "$weekly_min" = "00" ]; then
                             if [ $weekly_hour -eq 12 ]; then
-                                if [ "$weekly_ampm" = "am" ]; then weekly_time_str="Midnight"; else weekly_time_str="Midday"; fi
+                                if [ "$weekly_ampm" = "am" ]; then weekly_time_str="midnight"; else weekly_time_str="midday"; fi
                             else
                                 weekly_time_str="${weekly_hour}${weekly_ampm}"
                             fi
