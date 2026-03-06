@@ -62,7 +62,7 @@ repo 🌿 feature-branch 🪾 my-worktree | opus 4.6 ●●• | [██░░�
 - `[██░░░░░░░░] 5h:24% used` - 5-hour rate limit usage from Anthropic API
   - Visual bar + percentage
   - Gray: <50%, Yellow: 50-79%, Red: ≥80%
-  - Shows `w:3%` if weekly data is available
+  - Shows `w:3%` if weekly data is available; at ≥50% also shows reset date and countdown (e.g., `w:87% ↺ 6Mar-Midday.3h18m`)
   - When 5h hits 100% and extra usage is enabled, shows extra usage bar (light orange) with dollar spend
 - `↺9pm 1h43m` - Next reset time + countdown
   - Icon in dark green (#357500)

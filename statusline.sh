@@ -314,8 +314,8 @@ if [ -n "$usage_json" ]; then
             [ -z "$weekly_int" ] && weekly_int=0
 
             weekly_reset_str=""
-            # Show weekly reset info only when usage >= 85%
-            if [ $weekly_int -ge 85 ] && [ -n "$weekly_reset" ] && [ "$weekly_reset" != "null" ]; then
+            # Show weekly reset info only when usage >= 50%
+            if [ $weekly_int -ge 50 ] && [ -n "$weekly_reset" ] && [ "$weekly_reset" != "null" ]; then
                 if [ "$OS_TYPE" = "Darwin" ]; then
                     weekly_reset_epoch=$(TZ=UTC date -j -f "%Y-%m-%dT%H:%M:%S" "${weekly_reset%%.*}" +%s 2>/dev/null)
                 else
@@ -354,13 +354,13 @@ if [ -n "$usage_json" ]; then
                                 if [ "$weekly_ampm" = "pm" ]; then weekly_ampm="am"; else weekly_ampm="pm"; fi
                             fi
                             if [ $weekly_hour -eq 12 ]; then
-                                if [ "$weekly_ampm" = "am" ]; then weekly_time_str="midnight"; else weekly_time_str="midday"; fi
+                                if [ "$weekly_ampm" = "am" ]; then weekly_time_str="Midnight"; else weekly_time_str="Midday"; fi
                             else
                                 weekly_time_str="${weekly_hour}${weekly_ampm}"
                             fi
                         elif [ "$weekly_min" = "00" ]; then
                             if [ $weekly_hour -eq 12 ]; then
-                                if [ "$weekly_ampm" = "am" ]; then weekly_time_str="midnight"; else weekly_time_str="midday"; fi
+                                if [ "$weekly_ampm" = "am" ]; then weekly_time_str="Midnight"; else weekly_time_str="Midday"; fi
                             else
                                 weekly_time_str="${weekly_hour}${weekly_ampm}"
                             fi
@@ -375,7 +375,7 @@ if [ -n "$usage_json" ]; then
                             countdown_str="${hours}h${minutes}m"
                         fi
 
-                        weekly_reset_str=" ${DARK_GREEN}↺${RESET} ${GRAY}${weekly_date}${weekly_time_str}.${countdown_str}${RESET}"
+                        weekly_reset_str=" ${DARK_GREEN}↺${RESET} ${GRAY}${weekly_date}-${weekly_time_str}.${countdown_str}${RESET}"
                     fi
                 fi
             fi
