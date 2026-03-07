@@ -183,10 +183,10 @@ compact_threshold=$((window_size * 85 / 100))  # Change 85 to your preferred %
 
 ### API Cache Duration
 
-The script caches Anthropic API responses for 30 seconds to avoid rate limits. Adjust if needed:
+The script caches Anthropic API responses for 60 seconds to avoid rate limits. Adjust if needed:
 
 ```bash
-CACHE_MAX_AGE=30  # seconds
+CACHE_MAX_AGE=60  # seconds
 ```
 
 ### Hide Segments
@@ -210,7 +210,7 @@ The statusline script:
    - macOS: Retrieves OAuth token from Keychain (`security find-generic-password`)
    - Linux: Uses `secret-tool` or `~/.claude/credentials.json`
    - Calls `https://api.anthropic.com/api/oauth/usage` for live rate limit data
-   - Caches results for 30 seconds to avoid API rate limits
+   - Caches results for 60 seconds to avoid API rate limits
 4. **Parses API response** for:
    - `five_hour.utilization` - Current 5-hour usage percentage
    - `five_hour.resets_at` - UTC timestamp of next reset
@@ -322,7 +322,7 @@ echo $TERM
 
 ### API error indicator `[!]`?
 
-If you see `[!]` before the progress bar, the API call is failing but cached data is being displayed. Common causes:
+If you see `[!]` before the progress bar, the API call is failing and no cached data is available. When the API fails but cached data exists, the cache is used silently. Common causes:
 - OAuth token expired (re-login to Claude Code)
 - Network issues
 - API rate limiting
@@ -352,5 +352,5 @@ Created for the Claude Code community. Inspired by the need for better context a
 - Monitor the 5-hour rate limit bar to pace your usage
 - Dark green `↺` icon marks the reset timer
 - Weekly usage (`w:X%`) helps track longer-term patterns
-- Cache refreshes every 30 seconds to keep data current without hammering the API
+- Cache refreshes every 60 seconds to keep data current without hammering the API
 - Times are shown cleanly: `9pm` instead of `9:00pm`, `:59` rounds to next hour

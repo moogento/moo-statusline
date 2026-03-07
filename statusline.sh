@@ -148,7 +148,7 @@ get_oauth_token() {
 
 # Cache file for usage data (avoid hammering API)
 CACHE_FILE="/tmp/claude-usage-cache.json"
-CACHE_MAX_AGE=30  # seconds
+CACHE_MAX_AGE=60  # seconds
 
 get_file_mtime() {
     if [ "$OS_TYPE" = "Darwin" ]; then
@@ -189,9 +189,12 @@ if should_refresh_cache; then
     if [ -n "$usage_json" ] && echo "$usage_json" | jq -e '.five_hour' >/dev/null 2>&1; then
         echo "$usage_json" > "$CACHE_FILE"
     else
-        api_error=true
         if [ -f "$CACHE_FILE" ]; then
             usage_json=$(cat "$CACHE_FILE")
+            # Touch cache to avoid re-fetching on next refresh
+            touch "$CACHE_FILE"
+        else
+            api_error=true
         fi
     fi
 else
