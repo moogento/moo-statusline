@@ -148,7 +148,9 @@ get_oauth_token() {
 
 # Cache file for usage data (avoid hammering API)
 CACHE_FILE="/tmp/claude-usage-cache.json"
-CACHE_MAX_AGE=60  # seconds
+BACKOFF_FILE="/tmp/claude-usage-backoff"
+CACHE_MAX_AGE=60      # seconds between normal refreshes
+RATE_LIMIT_BACKOFF=300  # seconds to back off after a rate-limit response
 
 get_file_mtime() {
     if [ "$OS_TYPE" = "Darwin" ]; then
@@ -159,6 +161,12 @@ get_file_mtime() {
 }
 
 should_refresh_cache() {
+    # Honor rate-limit backoff to avoid hammering a limited endpoint
+    if [ -f "$BACKOFF_FILE" ]; then
+        local backoff_age=$(($(date +%s) - $(get_file_mtime "$BACKOFF_FILE")))
+        [ $backoff_age -lt $RATE_LIMIT_BACKOFF ] && return 1
+        rm -f "$BACKOFF_FILE" 2>/dev/null
+    fi
     if [ ! -f "$CACHE_FILE" ]; then
         return 0
     fi
@@ -188,10 +196,14 @@ if should_refresh_cache; then
     usage_json=$(fetch_usage)
     if [ -n "$usage_json" ] && echo "$usage_json" | jq -e '.five_hour' >/dev/null 2>&1; then
         echo "$usage_json" > "$CACHE_FILE"
+        rm -f "$BACKOFF_FILE" 2>/dev/null
     else
+        # Apply longer backoff when rate-limited to stop hammering the endpoint
+        if echo "$usage_json" | jq -e '.error.type == "rate_limit_error"' >/dev/null 2>&1; then
+            touch "$BACKOFF_FILE"
+        fi
         if [ -f "$CACHE_FILE" ]; then
             usage_json=$(cat "$CACHE_FILE")
-            # Touch cache to avoid re-fetching on next refresh
             touch "$CACHE_FILE"
         else
             api_error=true
