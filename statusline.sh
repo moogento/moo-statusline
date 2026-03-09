@@ -317,7 +317,7 @@ if [ -n "$usage_json" ]; then
                         time_color="$GRAY"
                     fi
 
-                    daily_reset_str=" ${DARK_GREEN}↺${RESET}${time_color}${reset_time_str}.${hours}h${minutes}m${RESET}"
+                    daily_reset_str=" ${DARK_GREEN}↺${RESET} ${time_color}${reset_time_str}.${hours}h${minutes}m${RESET}"
                 fi
             fi
         fi
