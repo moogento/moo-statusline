@@ -435,6 +435,34 @@ if [ -z "$usage_display" ]; then
     usage_display="${GRAY}[░░░░░░░░░░] --% ${DARK_GREEN}↺${RESET} ${GRAY}--${RESET}"
 fi
 
+# Read a setting from Claude Code settings hierarchy
+# Priority: project local > project > global local > global
+read_setting() {
+    local key="$1"
+    local result="unset"
+    local val
+
+    # Global settings.json (lowest priority)
+    val=$(jq -r "if has(\"$key\") then .[\"$key\"] | tostring else \"unset\" end" "$HOME/.claude/settings.json" 2>/dev/null)
+    [ "$val" != "unset" ] && [ -n "$val" ] && result="$val"
+
+    # Global settings.local.json
+    val=$(jq -r "if has(\"$key\") then .[\"$key\"] | tostring else \"unset\" end" "$HOME/.claude/settings.local.json" 2>/dev/null)
+    [ "$val" != "unset" ] && [ -n "$val" ] && result="$val"
+
+    # Project settings.json
+    if [ -n "$project_dir" ] && [ "$project_dir" != "null" ]; then
+        val=$(jq -r "if has(\"$key\") then .[\"$key\"] | tostring else \"unset\" end" "$project_dir/.claude/settings.json" 2>/dev/null)
+        [ "$val" != "unset" ] && [ -n "$val" ] && result="$val"
+
+        # Project settings.local.json (highest priority)
+        val=$(jq -r "if has(\"$key\") then .[\"$key\"] | tostring else \"unset\" end" "$project_dir/.claude/settings.local.json" 2>/dev/null)
+        [ "$val" != "unset" ] && [ -n "$val" ] && result="$val"
+    fi
+
+    echo "$result"
+}
+
 # Context window (always show in k format)
 context_display=""
 if [ "$MOO_HIDE_CONTEXT" != "1" ]; then
@@ -449,16 +477,13 @@ if [ "$MOO_HIDE_CONTEXT" != "1" ] && [ "$current_usage" != "null" ]; then
     cache_read=$(echo "$current_usage" | jq -r ".cache_read_input_tokens // 0")
     current_total=$((input_tokens + cache_creation + cache_read))
 
-    # Detect if auto-compact is disabled via project or global settings
+    # Detect if auto-compact is disabled via settings hierarchy
     auto_compact_disabled=false
-    if [ -n "$project_dir" ] && [ "$project_dir" != "null" ]; then
-        project_compact=$(jq -r 'if has("autoCompact") then .autoCompact | tostring else "unset" end' "$project_dir/.claude/settings.json" 2>/dev/null)
-        [ "$project_compact" = "false" ] && auto_compact_disabled=true
-    fi
-    if [ "$auto_compact_disabled" = false ]; then
-        global_compact=$(jq -r 'if has("autoCompact") then .autoCompact | tostring else "unset" end' "$HOME/.claude/settings.json" 2>/dev/null)
-        [ "$global_compact" = "false" ] && auto_compact_disabled=true
-    fi
+    auto_compact_val=$(read_setting "autoCompact")
+    [ "$auto_compact_val" = "false" ] && auto_compact_disabled=true
+
+    # Read custom autoCompactWindow threshold from settings
+    auto_compact_window=$(read_setting "autoCompactWindow")
 
     # Convert to k format
     current_k=$((current_total / 1000))
@@ -486,9 +511,15 @@ if [ "$MOO_HIDE_CONTEXT" != "1" ] && [ "$current_usage" != "null" ]; then
         fi
     else
         # Auto-compact enabled: show current/compact(max)
-        # Claude Code triggers auto-compact at window_size - 45K
-        compact_threshold=$((window_size - 45000))
+        # autoCompactWindow overrides the effective window for compact calculation
+        if [ "$auto_compact_window" != "unset" ] && [ -n "$auto_compact_window" ]; then
+            effective_window=$auto_compact_window
+        else
+            effective_window=$window_size
+        fi
+        compact_threshold=$((effective_window - 45000))
         compact_k=$(( (compact_threshold + 500) / 1000 ))
+        effective_k=$((effective_window / 1000))
 
         remaining_k=$((compact_k - current_k))
         if [ $remaining_k -le 10 ]; then
@@ -499,7 +530,7 @@ if [ "$MOO_HIDE_CONTEXT" != "1" ] && [ "$current_usage" != "null" ]; then
             ctx_color="$GRAY"
         fi
 
-        context_display="${GRAY}⛁ ${ctx_color}${current_k}k/${compact_k}k${DARK_GRAY}(${window_k}k)${RESET}"
+        context_display="${GRAY}⛁ ${ctx_color}${current_k}k/${compact_k}k${DARK_GRAY}(${effective_k}k)${RESET}"
 
         if [ $remaining_k -le 5 ] && [ $remaining_k -gt 0 ]; then
             context_display="${context_display} ${RED}${remaining_k}k left${RESET}"
