@@ -511,15 +511,14 @@ if [ "$MOO_HIDE_CONTEXT" != "1" ] && [ "$current_usage" != "null" ]; then
         fi
     else
         # Auto-compact enabled: show current/compact(max)
-        # autoCompactWindow overrides the effective window for compact calculation
         if [ "$auto_compact_window" != "unset" ] && [ -n "$auto_compact_window" ]; then
-            effective_window=$auto_compact_window
+            # autoCompactWindow is the compact threshold directly
+            compact_threshold=$auto_compact_window
         else
-            effective_window=$window_size
+            # Default: Claude Code triggers auto-compact at window_size - 45K
+            compact_threshold=$((window_size - 45000))
         fi
-        compact_threshold=$((effective_window - 45000))
         compact_k=$(( (compact_threshold + 500) / 1000 ))
-        effective_k=$((effective_window / 1000))
 
         remaining_k=$((compact_k - current_k))
         if [ $remaining_k -le 10 ]; then
@@ -530,7 +529,13 @@ if [ "$MOO_HIDE_CONTEXT" != "1" ] && [ "$current_usage" != "null" ]; then
             ctx_color="$GRAY"
         fi
 
-        context_display="${GRAY}⛁ ${ctx_color}${current_k}k/${compact_k}k${DARK_GRAY}(${effective_k}k)${RESET}"
+        if [ "$auto_compact_window" != "unset" ] && [ -n "$auto_compact_window" ]; then
+            # autoCompactWindow set: show current/threshold (no parenthetical)
+            context_display="${GRAY}⛁ ${ctx_color}${current_k}k/${compact_k}k${RESET}"
+        else
+            # Default: show current/compact(window)
+            context_display="${GRAY}⛁ ${ctx_color}${current_k}k/${compact_k}k${DARK_GRAY}(${window_k}k)${RESET}"
+        fi
 
         if [ $remaining_k -le 5 ] && [ $remaining_k -gt 0 ]; then
             context_display="${context_display} ${RED}${remaining_k}k left${RESET}"
