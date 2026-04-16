@@ -78,11 +78,13 @@ model_name="${GRAY}${model_name_raw}${RESET}"
 # Model effort bars - only for thinking-capable models (opus/sonnet, not haiku)
 if [[ "$model_id" == *"opus"* ]] || [[ "$model_id" == *"sonnet"* ]]; then
     effort_level="${CLAUDE_CODE_EFFORT_LEVEL:-}"
-    # Normalize numeric values: 1=low, 2=medium, 3=high
+    # Normalize numeric values: 1=low, 2=medium, 3=high, 4=xhigh, 5=max
     case "$effort_level" in
         1) effort_level="low" ;;
         2) effort_level="medium" ;;
         3) effort_level="high" ;;
+        4) effort_level="xhigh" ;;
+        5) effort_level="max" ;;
     esac
     # Read effortLevel from settings (project overrides global)
     if [ -z "$effort_level" ]; then
@@ -107,12 +109,41 @@ if [[ "$model_id" == *"opus"* ]] || [[ "$model_id" == *"sonnet"* ]]; then
         [ "$thinking_enabled" = "true" ] && effort_level="high"
     fi
 
+    # Models with xhigh/max support (opus 4.7+) use a 4-dot scale
+    max_dots=3
+    if [[ "$model_id" =~ opus-([0-9]+)-([0-9]+) ]]; then
+        opus_major="${BASH_REMATCH[1]}"
+        opus_minor="${BASH_REMATCH[2]}"
+        if [ "$opus_major" -gt 4 ] || { [ "$opus_major" -eq 4 ] && [ "$opus_minor" -ge 7 ]; }; then
+            max_dots=4
+        fi
+    fi
+
     case "$effort_level" in
-        low)    lit="●"   ; dim="●●" ;;
-        medium) lit="●●"  ; dim="●"  ;;
-        high)   lit="●●●" ; dim=""   ;;
-        *)      lit=""    ; dim=""   ;;
+        low)    lit_count=1 ;;
+        medium) lit_count=2 ;;
+        high)   lit_count=3 ;;
+        xhigh)  lit_count=4 ;;
+        max)    lit_count=$max_dots ;;
+        *)      lit_count=0 ;;
     esac
+
+    # Cap lit dots at the model's supported maximum
+    if [ "$lit_count" -gt "$max_dots" ]; then
+        lit_count=$max_dots
+    fi
+
+    lit=""
+    dim=""
+    if [ "$lit_count" -gt 0 ]; then
+        for ((i=1; i<=max_dots; i++)); do
+            if [ "$i" -le "$lit_count" ]; then
+                lit="${lit}●"
+            else
+                dim="${dim}●"
+            fi
+        done
+    fi
 
     if [ -n "$lit" ] || [ -n "$dim" ]; then
         effort_bars="${GRAY}${lit}${DARK_GRAY}${dim}${RESET}"
