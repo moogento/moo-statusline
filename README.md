@@ -22,7 +22,7 @@ chmod +x ./codex-statusline-watch.sh
 
 - 🌿 **Git Integration** - Shows project name and current branch (highlighted in green)
 - 🤖 **Model Display** - Simplified model names with version (e.g., opus 4.6, sonnet 4.5, haiku 4)
-- 🧠 **Effort Indicator** - Shows thinking effort level as dots next to model name (●●• = medium; 4-dot scale on opus 4.7+ for xhigh/max)
+- 🧠 **Effort Indicator** - Shows thinking effort level as dots next to model name (●●• = medium; 5-dot scale on opus 4.7+ for xhigh/max)
 - 🪾 **Worktree Detection** - Shows worktree name in light brown when working in a git worktree
 - 📊 **Context Tracking** - Shows current usage vs auto-compact threshold (e.g., `⛁ 97k/155k(200k)`), respects `autoCompactWindow` setting
 - ⚡ **Live Rate Limit Data** - Real 5-hour usage from Anthropic API with visual progress bar
@@ -54,7 +54,7 @@ repo 🌿 feature-branch 🪾 my-worktree | opus 4.6 ●●• | [██░░�
 - `🪾 my-worktree` - Worktree name in light brown (only shown in git worktrees)
 - `opus 4.6 ●●•` - Current model with version and effort level dots
   - `●●●` = high (default), `●●•` = medium, `●••` = low
-  - Opus 4.7+ uses a 4-dot scale: `●●●●` = max/xhigh, `●●●•` = high, `●●••` = medium, `●•••` = low
+  - Opus 4.7+ uses a 5-dot scale: `●●●●●` = max, `●●●●•` = xhigh, `●●●••` = high, `●●•••` = medium, `●••••` = low
   - Only shown for thinking-capable models (opus/sonnet, not haiku)
   - Reads from `/model` command, `CLAUDE_CODE_EFFORT_LEVEL` env var, or `alwaysThinkingEnabled` setting
 - `⛁ 65k/500k` - Current context usage / compact threshold

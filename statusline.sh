@@ -109,13 +109,13 @@ if [[ "$model_id" == *"opus"* ]] || [[ "$model_id" == *"sonnet"* ]]; then
         [ "$thinking_enabled" = "true" ] && effort_level="high"
     fi
 
-    # Models with xhigh/max support (opus 4.7+) use a 4-dot scale
+    # Models with xhigh/max support (opus 4.7+) use a 5-dot scale
     max_dots=3
     if [[ "$model_id" =~ opus-([0-9]+)-([0-9]+) ]]; then
         opus_major="${BASH_REMATCH[1]}"
         opus_minor="${BASH_REMATCH[2]}"
         if [ "$opus_major" -gt 4 ] || { [ "$opus_major" -eq 4 ] && [ "$opus_minor" -ge 7 ]; }; then
-            max_dots=4
+            max_dots=5
         fi
     fi
 
@@ -124,7 +124,7 @@ if [[ "$model_id" == *"opus"* ]] || [[ "$model_id" == *"sonnet"* ]]; then
         medium) lit_count=2 ;;
         high)   lit_count=3 ;;
         xhigh)  lit_count=4 ;;
-        max)    lit_count=$max_dots ;;
+        max)    lit_count=5 ;;
         *)      lit_count=0 ;;
     esac
 
