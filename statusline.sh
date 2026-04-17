@@ -560,13 +560,7 @@ if [ "$MOO_HIDE_CONTEXT" != "1" ] && [ "$current_usage" != "null" ]; then
             ctx_color="$GRAY"
         fi
 
-        if [ "$auto_compact_window" != "unset" ] && [ -n "$auto_compact_window" ]; then
-            # autoCompactWindow set: show current/threshold (no parenthetical)
-            context_display="${GRAY}⛁ ${ctx_color}${current_k}k/${compact_k}k${RESET}"
-        else
-            # Default: show current/compact(window)
-            context_display="${GRAY}⛁ ${ctx_color}${current_k}k/${compact_k}k${DARK_GRAY}(${window_k}k)${RESET}"
-        fi
+        context_display="${GRAY}⛁ ${ctx_color}${current_k}k/${compact_k}k${RESET}"
 
         if [ $remaining_k -le 5 ] && [ $remaining_k -gt 0 ]; then
             context_display="${context_display} ${RED}${remaining_k}k left${RESET}"
