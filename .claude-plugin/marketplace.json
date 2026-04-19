@@ -1,0 +1,19 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "moo-statusline",
+  "metadata": {
+    "description": "Beautiful Claude Code statusline with git, model, context, and live rate limit tracking"
+  },
+  "owner": {
+    "name": "Moogento",
+    "email": "jim@moogento.com"
+  },
+  "plugins": [
+    {
+      "name": "moo-statusline",
+      "description": "Beautiful statusline showing git, model, context usage, and live rate limits from the Anthropic API. Requires jq, git, bash. macOS and Linux.",
+      "version": "1.1.0",
+      "source": "./"
+    }
+  ]
+}
