@@ -74,9 +74,10 @@ repo 🌿 feature-branch 🪾 my-worktree | opus 4.6 ●●• | [██░░�
 
 ### Plugin Install (Recommended)
 
-```bash
-# 1. Add the plugin to Claude Code
-claude plugins add github:moogento/moo-statusline
+```
+# 1. Add the marketplace and install the plugin
+/plugin marketplace add https://github.com/moogento/moo-statusline.git
+/plugin install moo-statusline@moo-statusline
 
 # 2. Run the setup command
 /statusline
