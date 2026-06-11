@@ -75,11 +75,13 @@ for family in sonnet opus haiku; do
 done
 model_name="${GRAY}${model_name_raw}${RESET}"
 
-# Model effort bars - only for thinking-capable models (opus/sonnet, not haiku)
-if [[ "$model_id" == *"opus"* ]] || [[ "$model_id" == *"sonnet"* ]]; then
-    # Models with xhigh/max support (opus 4.7+) use a 5-dot scale
+# Model effort bars - only for thinking-capable models (opus/sonnet/fable, not haiku)
+if [[ "$model_id" == *"opus"* ]] || [[ "$model_id" == *"sonnet"* ]] || [[ "$model_id" == *"fable"* ]]; then
+    # Models with xhigh/max support (opus 4.7+, fable) use a 5-dot scale
     max_dots=3
-    if [[ "$model_id" =~ opus-([0-9]+)-([0-9]+) ]]; then
+    if [[ "$model_id" == *"fable"* ]]; then
+        max_dots=5
+    elif [[ "$model_id" =~ opus-([0-9]+)-([0-9]+) ]]; then
         opus_major="${BASH_REMATCH[1]}"
         opus_minor="${BASH_REMATCH[2]}"
         if [ "$opus_major" -gt 4 ] || { [ "$opus_major" -eq 4 ] && [ "$opus_minor" -ge 7 ]; }; then
@@ -105,11 +107,18 @@ if [[ "$model_id" == *"opus"* ]] || [[ "$model_id" == *"sonnet"* ]]; then
             effort_level=$(jq -r '.effortLevel // empty' "$HOME/.claude/settings.json" 2>/dev/null)
         fi
     fi
-    # On opus 4.7+, Claude Code persists max by clearing effortLevel and setting
-    # unpinOpus47LaunchEffort=true. When unpinned with no level stored, the user
-    # picked max; when still pinned, they're on the launch default (xhigh).
+    # On 5-level models, Claude Code persists max by clearing effortLevel and
+    # setting a per-model unpin flag (e.g. unpinOpus47LaunchEffort=true). When
+    # unpinned with no level stored, the user picked max; when still pinned,
+    # they're on the launch default (xhigh).
     if [ -z "$effort_level" ] && [ "$max_dots" -eq 5 ]; then
-        unpin=$(jq -r '.unpinOpus47LaunchEffort // false' "$HOME/.claude.json" 2>/dev/null)
+        unpin_key="unpinOpus47LaunchEffort"
+        if [[ "$model_id" =~ fable-([0-9]+) ]]; then
+            unpin_key="unpinFable${BASH_REMATCH[1]}LaunchEffort"
+        elif [[ "$model_id" =~ opus-([0-9]+)-([0-9]+) ]]; then
+            unpin_key="unpinOpus${BASH_REMATCH[1]}${BASH_REMATCH[2]}LaunchEffort"
+        fi
+        unpin=$(jq -r ".${unpin_key} // false" "$HOME/.claude.json" 2>/dev/null)
         if [ "$unpin" = "true" ]; then
             effort_level="max"
         else
