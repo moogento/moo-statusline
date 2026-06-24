@@ -23,7 +23,7 @@ chmod +x ./codex-statusline-watch.sh
 - 🌿 **Git Integration** - Shows project name and current branch (highlighted in green)
 - 🤖 **Model Display** - Simplified model names with version (e.g., opus 4.6, sonnet 4.5, haiku 4)
 - 🧠 **Effort Indicator** - Shows thinking effort level as dots next to model name (●●• = medium; 5-dot scale on opus 4.7+ and fable for xhigh/max)
-- 🪾 **Worktree Detection** - Shows worktree name in light brown when working in a git worktree
+- 🪾 **Worktree Detection** - In a worktree, shows the parent repo name + branch with 🌿🪾 icons together; appends the folder name (light brown) only when it isn't derivable from the branch
 - 📊 **Context Tracking** - Shows current usage vs auto-compact threshold (e.g., `⛁ 97k/155k`), respects `autoCompactWindow` setting
 - ⚡ **Live Rate Limit Data** - Real 5-hour usage from Anthropic API with visual progress bar
 - ⏰ **Smart Reset Timer** - Displays next reset time and countdown (e.g., `↺ 9pm 1h43m`)
@@ -36,22 +36,23 @@ chmod +x ./codex-statusline-watch.sh
 ![Moo Statusline Screenshot](assets/moo-statusbar.png)
 
 ```
-repo 🌿 main | opus 4.6 ●●● | ⛁ 65k/155k | [██░░░░░░░░] 5h:24% used ↺9pm 1h43m
+repo 🌿 main | opus 4.6 ●●● | ⛁ 65k/155k | [█░░░░] 5h:24% used ↺9pm 1h43m
 ```
 
 When 5-hour limit is reached with extra usage enabled:
 ```
-repo 🌿 main | opus 4.6 ●●● | [█░░░░░░░░░] extra:12% used $515.00/$4250 | 5h:100% used ↺3pm.0h14m | w:63%
+repo 🌿 main | opus 4.6 ●●● | [░░░░░] extra:12% used $515.00/$4250 | 5h:100% used ↺3pm.0h14m | w:63%
 ```
 
-In a worktree:
+In a worktree (parent repo name + branch, icons together; the folder is added only when it isn't derivable from the branch):
 ```
-repo 🌿 feature-branch 🪾 my-worktree | opus 4.6 ●●• | [██░░░░░░░░] 5h:24% used ↺9pm 1h43m
+myrepo 🌿🪾 feature-branch | opus 4.6 ●●• | [█░░░░] 5h:24% used ↺9pm 1h43m
+myrepo 🌿 feature-branch 🪾 scratch-dir | opus 4.6 ●●• | [█░░░░] 5h:24% used ↺9pm 1h43m
 ```
 
 **Breakdown:**
-- `repo 🌿 main` - Project name + git branch (branch in green #74BE33)
-- `🪾 my-worktree` - Worktree name in light brown (only shown in git worktrees)
+- `repo 🌿 main` - Project name + git branch (branch in green #74BE33); in a worktree the gray name is the parent repo
+- `🌿🪾 branch` - In a worktree the branch + worktree icons sit together; the folder name (light brown) is appended only when it isn't derivable from the branch (not a prefix/suffix match), e.g. `🌿 feature-branch 🪾 scratch-dir`
 - `opus 4.6 ●●•` - Current model with version and effort level dots
   - `●●●` = high (default), `●●•` = medium, `●••` = low
   - Opus 4.7+ and Fable use a 5-dot scale: `●●●●●` = max, `●●●●•` = xhigh, `●●●••` = high, `●●•••` = medium, `●••••` = low
@@ -61,7 +62,7 @@ repo 🌿 feature-branch 🪾 my-worktree | opus 4.6 ●●• | [██░░�
   - With `autoCompactWindow`: used directly as threshold (e.g., `65k/500k`)
   - Without: defaults to `context_window_size - 45K` (e.g., `65k/155k`)
   - Turns orange when <20k remaining, red when <10k
-- `[██░░░░░░░░] 5h:24% used` - 5-hour rate limit usage from Anthropic API
+- `[█░░░░] 5h:24% used` - 5-hour rate limit usage from Anthropic API
   - Visual bar + percentage
   - Gray: <50%, Yellow: 50-79%, Red: ≥80%
   - Shows `w:3%` if weekly data is available; at ≥50% also shows reset date and countdown (e.g., `w:87% ↺ 6mar-midday.3h18m`)
@@ -270,7 +271,7 @@ Claude Code refreshes the statusline automatically every ~300ms.
 
 5. **Restart Claude Code completely**
 
-### Rate limit showing as `[░░░░░░░░░░] --%`?
+### Rate limit showing as `[░░░░░] --%`?
 
 This means the API call is failing. Check:
 

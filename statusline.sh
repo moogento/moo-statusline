@@ -46,13 +46,27 @@ if [ "$MOO_HIDE_GIT" != "1" ]; then
     if [ -d "$cwd/.git" ] || [ -d "$(dirname "$cwd")/.git" ] || [ -f "$cwd/.git" ]; then
         git_branch=$(cd "$cwd" 2>/dev/null && git rev-parse --abbrev-ref HEAD 2>/dev/null)
         if [ -n "$git_branch" ]; then
-            git_info="${GRAY}${project_name} 🌿 ${GREEN}${git_branch}${RESET}"
             # Detect worktree: git-common-dir differs from git-dir in a worktree
             git_dir=$(cd "$cwd" 2>/dev/null && git rev-parse --git-dir 2>/dev/null)
             git_common_dir=$(cd "$cwd" 2>/dev/null && git rev-parse --git-common-dir 2>/dev/null)
             if [ -n "$git_dir" ] && [ -n "$git_common_dir" ] && [ "$git_dir" != "$git_common_dir" ]; then
-                worktree_name=$(basename "$cwd")
-                git_info="${git_info} ${LIGHT_BROWN}🪾 ${worktree_name}${RESET}"
+                # Worktree: label with the main repo name
+                case "$git_common_dir" in
+                    /*) ;;
+                    *) git_common_dir="$cwd/$git_common_dir" ;;
+                esac
+                repo_name=$(basename "$(dirname "$git_common_dir")")
+                worktree_folder=$(basename "$cwd")
+                # Append the folder only when it isn't derivable from the branch name
+                if [[ "$git_branch" == "$worktree_folder" \
+                    || "$git_branch" == *"$worktree_folder" || "$git_branch" == "$worktree_folder"* \
+                    || "$worktree_folder" == *"$git_branch" || "$worktree_folder" == "$git_branch"* ]]; then
+                    git_info="${GRAY}${repo_name} 🌿${LIGHT_BROWN}🪾 ${GREEN}${git_branch}${RESET}"
+                else
+                    git_info="${GRAY}${repo_name} 🌿 ${GREEN}${git_branch}${LIGHT_BROWN} 🪾 ${worktree_folder}${RESET}"
+                fi
+            else
+                git_info="${GRAY}${project_name} 🌿 ${GREEN}${git_branch}${RESET}"
             fi
         fi
     fi
@@ -281,10 +295,10 @@ if [ -n "$usage_json" ]; then
         [ -z "$pct_int" ] && pct_int=0
 
         # Build progress bar
-        filled=$((pct_int / 10))
-        empty=$((10 - filled))
-        [ $filled -gt 10 ] && filled=10 && empty=0
-        [ $filled -lt 0 ] && filled=0 && empty=10
+        filled=$((pct_int / 20))
+        empty=$((5 - filled))
+        [ $filled -gt 5 ] && filled=5 && empty=0
+        [ $filled -lt 0 ] && filled=0 && empty=5
 
         bar=""
         for ((i=0; i<filled; i++)); do bar+="█"; done
@@ -456,10 +470,10 @@ if [ -n "$usage_json" ]; then
             [ -z "$extra_int" ] && extra_int=0
 
             # Build extra usage progress bar
-            extra_filled=$((extra_int / 10))
-            extra_empty=$((10 - extra_filled))
-            [ $extra_filled -gt 10 ] && extra_filled=10 && extra_empty=0
-            [ $extra_filled -lt 0 ] && extra_filled=0 && extra_empty=10
+            extra_filled=$((extra_int / 20))
+            extra_empty=$((5 - extra_filled))
+            [ $extra_filled -gt 5 ] && extra_filled=5 && extra_empty=0
+            [ $extra_filled -lt 0 ] && extra_filled=0 && extra_empty=5
 
             extra_bar=""
             for ((i=0; i<extra_filled; i++)); do extra_bar+="█"; done
@@ -483,7 +497,7 @@ fi
 
 # Fallback if API failed
 if [ -z "$usage_display" ]; then
-    usage_display="${GRAY}[░░░░░░░░░░] --% ${DARK_GREEN}↺${RESET} ${GRAY}--${RESET}"
+    usage_display="${GRAY}[░░░░░] --% ${DARK_GREEN}↺${RESET} ${GRAY}--${RESET}"
 fi
 
 # Read a setting from Claude Code settings hierarchy
