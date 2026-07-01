@@ -38,6 +38,8 @@ DARK_ORANGE=$'\033[38;2;204;122;0m'  # Darker orange for context warning
 LIGHT_ORANGE=$'\033[38;2;255;179;71m'  # Light orange for extra usage
 LIGHT_BROWN=$'\033[38;2;181;137;80m'  # Light brown for worktree
 RED=$'\033[38;2;255;82;82m'
+PURPLE=$'\033[38;2;168;85;247m'  # #A855F7 for the lit ultra effort dot
+DARK_PURPLE=$'\033[38;2;102;52;151m'  # #663497 for the unlit ultra effort dot
 RESET=$'\033[0m'
 
 # Git branch info
@@ -73,14 +75,14 @@ if [ "$MOO_HIDE_GIT" != "1" ]; then
 fi
 
 # Simplify model name: extract family and version from model_id
-# e.g. "claude-opus-4-6" → "opus 4.6", "claude-sonnet-4-5-20250929" → "sonnet 4.5"
+# e.g. "claude-opus-4-6" → "opus4.6", "claude-sonnet-4-5-20250929" → "sonnet4.5"
 model_name_raw="$model_display"
 for family in sonnet opus haiku; do
     if [[ "$model_id" == *"$family"* ]]; then
         if [[ "$model_id" =~ $family-([0-9]+)-([0-9]+) ]]; then
-            model_name_raw="$family ${BASH_REMATCH[1]}.${BASH_REMATCH[2]}"
+            model_name_raw="$family${BASH_REMATCH[1]}.${BASH_REMATCH[2]}"
         elif [[ "$model_id" =~ $family-([0-9]+) ]]; then
-            model_name_raw="$family ${BASH_REMATCH[1]}"
+            model_name_raw="$family${BASH_REMATCH[1]}"
         else
             model_name_raw="$family"
         fi
@@ -91,26 +93,32 @@ model_name="${GRAY}${model_name_raw}${RESET}"
 
 # Model effort bars - only for thinking-capable models (opus/sonnet/fable, not haiku)
 if [[ "$model_id" == *"opus"* ]] || [[ "$model_id" == *"sonnet"* ]] || [[ "$model_id" == *"fable"* ]]; then
-    # Models with xhigh/max support (opus 4.7+, fable) use a 5-dot scale
+    # Models with xhigh/max/ultra support (opus 4.7+, fable, sonnet 5+) use a 6-dot scale
     max_dots=3
     if [[ "$model_id" == *"fable"* ]]; then
-        max_dots=5
+        max_dots=6
     elif [[ "$model_id" =~ opus-([0-9]+)-([0-9]+) ]]; then
         opus_major="${BASH_REMATCH[1]}"
         opus_minor="${BASH_REMATCH[2]}"
         if [ "$opus_major" -gt 4 ] || { [ "$opus_major" -eq 4 ] && [ "$opus_minor" -ge 7 ]; }; then
-            max_dots=5
+            max_dots=6
+        fi
+    elif [[ "$model_id" =~ sonnet-([0-9]+) ]]; then
+        sonnet_major="${BASH_REMATCH[1]}"
+        if [ "$sonnet_major" -ge 5 ]; then
+            max_dots=6
         fi
     fi
 
     effort_level="${CLAUDE_CODE_EFFORT_LEVEL:-}"
-    # Normalize numeric values: 1=low, 2=medium, 3=high, 4=xhigh, 5=max
+    # Normalize numeric values: 1=low, 2=medium, 3=high, 4=xhigh, 5=max, 6=ultra
     case "$effort_level" in
         1) effort_level="low" ;;
         2) effort_level="medium" ;;
         3) effort_level="high" ;;
         4) effort_level="xhigh" ;;
         5) effort_level="max" ;;
+        6) effort_level="ultra" ;;
     esac
     # Read effortLevel from settings (project overrides global)
     if [ -z "$effort_level" ]; then
@@ -121,20 +129,22 @@ if [[ "$model_id" == *"opus"* ]] || [[ "$model_id" == *"sonnet"* ]] || [[ "$mode
             effort_level=$(jq -r '.effortLevel // empty' "$HOME/.claude/settings.json" 2>/dev/null)
         fi
     fi
-    # On 5-level models, Claude Code persists max by clearing effortLevel and
+    # On 6-level models, Claude Code persists ultra by clearing effortLevel and
     # setting a per-model unpin flag (e.g. unpinOpus47LaunchEffort=true). When
-    # unpinned with no level stored, the user picked max; when still pinned,
+    # unpinned with no level stored, the user picked ultra; when still pinned,
     # they're on the launch default (xhigh).
-    if [ -z "$effort_level" ] && [ "$max_dots" -eq 5 ]; then
+    if [ -z "$effort_level" ] && [ "$max_dots" -eq 6 ]; then
         unpin_key="unpinOpus47LaunchEffort"
         if [[ "$model_id" =~ fable-([0-9]+) ]]; then
             unpin_key="unpinFable${BASH_REMATCH[1]}LaunchEffort"
         elif [[ "$model_id" =~ opus-([0-9]+)-([0-9]+) ]]; then
             unpin_key="unpinOpus${BASH_REMATCH[1]}${BASH_REMATCH[2]}LaunchEffort"
+        elif [[ "$model_id" =~ sonnet-([0-9]+) ]]; then
+            unpin_key="unpinSonnet${BASH_REMATCH[1]}LaunchEffort"
         fi
         unpin=$(jq -r ".${unpin_key} // false" "$HOME/.claude.json" 2>/dev/null)
         if [ "$unpin" = "true" ]; then
-            effort_level="max"
+            effort_level="ultra"
         else
             effort_level="xhigh"
         fi
@@ -159,6 +169,7 @@ if [[ "$model_id" == *"opus"* ]] || [[ "$model_id" == *"sonnet"* ]] || [[ "$mode
         high)   lit_count=3 ;;
         xhigh)  lit_count=4 ;;
         max)    lit_count=5 ;;
+        ultra)  lit_count=6 ;;
         *)      lit_count=0 ;;
     esac
 
@@ -172,9 +183,20 @@ if [[ "$model_id" == *"opus"* ]] || [[ "$model_id" == *"sonnet"* ]] || [[ "$mode
     if [ "$lit_count" -gt 0 ]; then
         for ((i=1; i<=max_dots; i++)); do
             if [ "$i" -le "$lit_count" ]; then
-                lit="${lit}●"
+                if [ "$i" -eq 6 ]; then
+                    # Ultra dot: terminals can't render a multi-color border on
+                    # one glyph (foreground color applies to the whole char),
+                    # so use solid purple instead.
+                    lit="${lit}${PURPLE}●${GRAY}"
+                else
+                    lit="${lit}●"
+                fi
             else
-                dim="${dim}●"
+                if [ "$i" -eq 6 ]; then
+                    dim="${dim}${DARK_PURPLE}●${DARK_GRAY}"
+                else
+                    dim="${dim}●"
+                fi
             fi
         done
     fi
