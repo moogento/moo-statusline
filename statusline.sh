@@ -97,9 +97,9 @@ if [[ "$model_id" == *"opus"* ]] || [[ "$model_id" == *"sonnet"* ]] || [[ "$mode
     max_dots=3
     if [[ "$model_id" == *"fable"* ]]; then
         max_dots=6
-    elif [[ "$model_id" =~ opus-([0-9]+)-([0-9]+) ]]; then
+    elif [[ "$model_id" =~ opus-([0-9]+)(-([0-9]+))? ]]; then
         opus_major="${BASH_REMATCH[1]}"
-        opus_minor="${BASH_REMATCH[2]}"
+        opus_minor="${BASH_REMATCH[3]:-0}"
         if [ "$opus_major" -gt 4 ] || { [ "$opus_major" -eq 4 ] && [ "$opus_minor" -ge 7 ]; }; then
             max_dots=6
         fi
@@ -137,8 +137,8 @@ if [[ "$model_id" == *"opus"* ]] || [[ "$model_id" == *"sonnet"* ]] || [[ "$mode
         unpin_key="unpinOpus47LaunchEffort"
         if [[ "$model_id" =~ fable-([0-9]+) ]]; then
             unpin_key="unpinFable${BASH_REMATCH[1]}LaunchEffort"
-        elif [[ "$model_id" =~ opus-([0-9]+)-([0-9]+) ]]; then
-            unpin_key="unpinOpus${BASH_REMATCH[1]}${BASH_REMATCH[2]}LaunchEffort"
+        elif [[ "$model_id" =~ opus-([0-9]+)(-([0-9]+))? ]]; then
+            unpin_key="unpinOpus${BASH_REMATCH[1]}${BASH_REMATCH[3]}LaunchEffort"
         elif [[ "$model_id" =~ sonnet-([0-9]+) ]]; then
             unpin_key="unpinSonnet${BASH_REMATCH[1]}LaunchEffort"
         fi
