@@ -22,7 +22,7 @@ chmod +x ./codex-statusline-watch.sh
 
 - 🌿 **Git Integration** - Shows project name and current branch (highlighted in green)
 - 🤖 **Model Display** - Simplified model names with version (e.g., opus4.6, sonnet4.5, haiku4)
-- 🧠 **Effort Indicator** - Shows thinking effort level as dots next to model name (●●• = medium; 6-dot scale on opus 4.7+, fable, and sonnet 5+ for xhigh/max/ultra)
+- 🧠 **Effort Indicator** - Shows thinking effort level as dots next to model name (●●• = medium; 6-dot scale on opus 4.7+, fable, mythos, and sonnet 5+ for xhigh/max/ultra)
 - 🪾 **Worktree Detection** - In a worktree, shows the parent repo name + branch with 🌿🪾 icons together; appends the folder name (light brown) only when it isn't derivable from the branch
 - 📊 **Context Tracking** - Shows current usage vs auto-compact threshold (e.g., `⛁ 97k/155k`), respects `autoCompactWindow` setting
 - ⚡ **Live Rate Limit Data** - Real 5-hour usage from Anthropic API with visual progress bar
@@ -55,9 +55,9 @@ myrepo 🌿 feature-branch 🪾 scratch-dir | opus4.6 ●●• | [█░░░�
 - `🌿🪾 branch` - In a worktree the branch + worktree icons sit together; the folder name (light brown) is appended only when it isn't derivable from the branch (not a prefix/suffix match), e.g. `🌿 feature-branch 🪾 scratch-dir`
 - `opus4.6 ●●•` - Current model with version and effort level dots
   - `●●●` = high (default), `●●•` = medium, `●••` = low
-  - Opus 4.7+, Fable, and Sonnet 5+ use a 6-dot scale: `●●●●●●` = ultra, `●●●●●•` = max, `●●●●••` = xhigh, `●●●•••` = high, `●●••••` = medium, `●•••••` = low
+  - Opus 4.7+, Fable, Mythos, and Sonnet 5+ use a 6-dot scale: `●●●●●●` = ultra, `●●●●●•` = max, `●●●●••` = xhigh, `●●●•••` = high, `●●••••` = medium, `●•••••` = low
   - The 6th dot (ultra) is purple instead of gray — vivid when lit, muted purple when unlit
-  - Only shown for thinking-capable models (opus/sonnet/fable, not haiku)
+  - Only shown for thinking-capable models (opus/sonnet/fable/mythos, not haiku)
   - Reads from `/model` command, `CLAUDE_CODE_EFFORT_LEVEL` env var, or `alwaysThinkingEnabled` setting
 - `⛁ 65k/500k` - Current context usage / compact threshold
   - With `autoCompactWindow`: used directly as threshold (e.g., `65k/500k`)

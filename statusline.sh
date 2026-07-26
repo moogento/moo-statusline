@@ -77,7 +77,7 @@ fi
 # Simplify model name: extract family and version from model_id
 # e.g. "claude-opus-4-6" → "opus4.6", "claude-sonnet-4-5-20250929" → "sonnet4.5"
 model_name_raw="$model_display"
-for family in sonnet opus haiku; do
+for family in sonnet opus haiku fable mythos; do
     if [[ "$model_id" == *"$family"* ]]; then
         if [[ "$model_id" =~ $family-([0-9]+)-([0-9]+) ]]; then
             model_name_raw="$family${BASH_REMATCH[1]}.${BASH_REMATCH[2]}"
@@ -91,11 +91,11 @@ for family in sonnet opus haiku; do
 done
 model_name="${GRAY}${model_name_raw}${RESET}"
 
-# Model effort bars - only for thinking-capable models (opus/sonnet/fable, not haiku)
-if [[ "$model_id" == *"opus"* ]] || [[ "$model_id" == *"sonnet"* ]] || [[ "$model_id" == *"fable"* ]]; then
-    # Models with xhigh/max/ultra support (opus 4.7+, fable, sonnet 5+) use a 6-dot scale
+# Model effort bars - only for thinking-capable models (opus/sonnet/fable/mythos, not haiku)
+if [[ "$model_id" == *"opus"* ]] || [[ "$model_id" == *"sonnet"* ]] || [[ "$model_id" == *"fable"* ]] || [[ "$model_id" == *"mythos"* ]]; then
+    # Models with xhigh/max/ultra support (opus 4.7+, fable, mythos, sonnet 5+) use a 6-dot scale
     max_dots=3
-    if [[ "$model_id" == *"fable"* ]]; then
+    if [[ "$model_id" == *"fable"* ]] || [[ "$model_id" == *"mythos"* ]]; then
         max_dots=6
     elif [[ "$model_id" =~ opus-([0-9]+)(-([0-9]+))? ]]; then
         opus_major="${BASH_REMATCH[1]}"
@@ -137,6 +137,8 @@ if [[ "$model_id" == *"opus"* ]] || [[ "$model_id" == *"sonnet"* ]] || [[ "$mode
         unpin_key="unpinOpus47LaunchEffort"
         if [[ "$model_id" =~ fable-([0-9]+) ]]; then
             unpin_key="unpinFable${BASH_REMATCH[1]}LaunchEffort"
+        elif [[ "$model_id" =~ mythos-([0-9]+) ]]; then
+            unpin_key="unpinMythos${BASH_REMATCH[1]}LaunchEffort"
         elif [[ "$model_id" =~ opus-([0-9]+)(-([0-9]+))? ]]; then
             unpin_key="unpinOpus${BASH_REMATCH[1]}${BASH_REMATCH[3]}LaunchEffort"
         elif [[ "$model_id" =~ sonnet-([0-9]+) ]]; then
