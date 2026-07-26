@@ -74,43 +74,66 @@ if [ "$MOO_HIDE_GIT" != "1" ]; then
     fi
 fi
 
-# Simplify model name: extract family and version from model_id
-# e.g. "claude-opus-4-6" → "opus4.6", "claude-sonnet-4-5-20250929" → "sonnet4.5"
-model_name_raw="$model_display"
-for family in sonnet opus haiku fable mythos; do
-    if [[ "$model_id" == *"$family"* ]]; then
-        if [[ "$model_id" =~ $family-([0-9]+)-([0-9]+) ]]; then
-            model_name_raw="$family${BASH_REMATCH[1]}.${BASH_REMATCH[2]}"
-        elif [[ "$model_id" =~ $family-([0-9]+) ]]; then
-            model_name_raw="$family${BASH_REMATCH[1]}"
-        else
-            model_name_raw="$family"
+# Parse family and version out of model_id without matching against a list of
+# known model names, so new families and versions need no script change.
+# "claude-opus-4-6" → opus 4.6, "claude-opus-5-20260115" → opus 5 (date dropped),
+# "claude-3-7-sonnet-20250219" → sonnet 3.7 (legacy family-last ordering)
+model_family=""
+model_major=""
+model_minor=""
+version_part=""
+model_core="${model_id##*claude-}"
+if [[ "$model_core" =~ ^([a-z]+) ]]; then
+    model_family="${BASH_REMATCH[1]}"
+    version_part="${model_core#"$model_family"}"
+elif [[ "$model_core" =~ ^([0-9]+)(-([0-9]+))?-([a-z]+) ]]; then
+    model_family="${BASH_REMATCH[4]}"
+    model_major="${BASH_REMATCH[1]}"
+    model_minor="${BASH_REMATCH[3]}"
+fi
+if [ -n "$version_part" ]; then
+    IFS='-' read -ra id_segments <<< "$version_part"
+    for seg in "${id_segments[@]}"; do
+        # 5+ digits is a date stamp (20250929), not a version number
+        [[ "$seg" =~ ^[0-9]{1,4}$ ]] || continue
+        if [ -z "$model_major" ]; then
+            model_major="$seg"
+        elif [ -z "$model_minor" ]; then
+            model_minor="$seg"
         fi
-        break
-    fi
-done
+    done
+fi
+
+model_name_raw="$model_display"
+if [ -n "$model_family" ]; then
+    model_name_raw="${model_family}${model_major}"
+    [ -n "$model_minor" ] && model_name_raw="${model_family}${model_major}.${model_minor}"
+fi
 model_name="${GRAY}${model_name_raw}${RESET}"
 
-# Model effort bars - only for thinking-capable models (opus/sonnet/fable/mythos, not haiku)
-if [[ "$model_id" == *"opus"* ]] || [[ "$model_id" == *"sonnet"* ]] || [[ "$model_id" == *"fable"* ]] || [[ "$model_id" == *"mythos"* ]]; then
-    # Models with xhigh/max/ultra support (opus 4.7+, fable, mythos, sonnet 5+) use a 6-dot scale
-    max_dots=3
-    if [[ "$model_id" == *"fable"* ]] || [[ "$model_id" == *"mythos"* ]]; then
-        max_dots=6
-    elif [[ "$model_id" =~ opus-([0-9]+)(-([0-9]+))? ]]; then
-        opus_major="${BASH_REMATCH[1]}"
-        opus_minor="${BASH_REMATCH[3]:-0}"
-        if [ "$opus_major" -gt 4 ] || { [ "$opus_major" -eq 4 ] && [ "$opus_minor" -ge 7 ]; }; then
-            max_dots=6
+# Effort dots - shown for every thinking-capable family. Haiku is the only
+# current exclusion; unrecognized families get dots rather than being skipped.
+if [ "$model_family" != "haiku" ] && [[ "$model_id" != *"haiku"* ]]; then
+    # Default to the full 6-level scale and step down only for known legacy
+    # models. Models gain effort tiers over time and never lose them, so an
+    # unrecognized id must not silently collapse the scale: showing unlit dots
+    # for a model that lacks the tier is a mild error, while capping a modern
+    # model at 3-of-3 makes "high" look maxed and hides the levels above it.
+    max_dots=6
+    if [ -n "$model_major" ] && [ "$model_family" = "opus" ]; then
+        if [ "$model_major" -lt 4 ] || { [ "$model_major" -eq 4 ] && [ "${model_minor:-0}" -lt 7 ]; }; then
+            max_dots=3
         fi
-    elif [[ "$model_id" =~ sonnet-([0-9]+) ]]; then
-        sonnet_major="${BASH_REMATCH[1]}"
-        if [ "$sonnet_major" -ge 5 ]; then
-            max_dots=6
-        fi
+    elif [ -n "$model_major" ] && [ "$model_family" = "sonnet" ]; then
+        [ "$model_major" -lt 5 ] && max_dots=3
     fi
 
-    effort_level="${CLAUDE_CODE_EFFORT_LEVEL:-}"
+    # Claude Code reports the live effort level on stdin (documented; reflects
+    # mid-session /effort changes, and is absent when the model has no effort
+    # parameter). The env var and settings chain below are fallbacks for older
+    # versions that don't send it.
+    effort_level=$(echo "$input" | jq -r '.effort.level // empty' 2>/dev/null)
+    [ -z "$effort_level" ] && effort_level="${CLAUDE_CODE_EFFORT_LEVEL:-}"
     # Normalize numeric values: 1=low, 2=medium, 3=high, 4=xhigh, 5=max, 6=ultra
     case "$effort_level" in
         1) effort_level="low" ;;
@@ -135,14 +158,9 @@ if [[ "$model_id" == *"opus"* ]] || [[ "$model_id" == *"sonnet"* ]] || [[ "$mode
     # they're on the launch default (xhigh).
     if [ -z "$effort_level" ] && [ "$max_dots" -eq 6 ]; then
         unpin_key="unpinOpus47LaunchEffort"
-        if [[ "$model_id" =~ fable-([0-9]+) ]]; then
-            unpin_key="unpinFable${BASH_REMATCH[1]}LaunchEffort"
-        elif [[ "$model_id" =~ mythos-([0-9]+) ]]; then
-            unpin_key="unpinMythos${BASH_REMATCH[1]}LaunchEffort"
-        elif [[ "$model_id" =~ opus-([0-9]+)(-([0-9]+))? ]]; then
-            unpin_key="unpinOpus${BASH_REMATCH[1]}${BASH_REMATCH[3]}LaunchEffort"
-        elif [[ "$model_id" =~ sonnet-([0-9]+) ]]; then
-            unpin_key="unpinSonnet${BASH_REMATCH[1]}LaunchEffort"
+        if [ -n "$model_family" ] && [ -n "$model_major" ]; then
+            family_capitalized="$(tr '[:lower:]' '[:upper:]' <<< "${model_family:0:1}")${model_family:1}"
+            unpin_key="unpin${family_capitalized}${model_major}${model_minor}LaunchEffort"
         fi
         unpin=$(jq -r ".${unpin_key} // false" "$HOME/.claude.json" 2>/dev/null)
         if [ "$unpin" = "true" ]; then
@@ -175,9 +193,10 @@ if [[ "$model_id" == *"opus"* ]] || [[ "$model_id" == *"sonnet"* ]] || [[ "$mode
         *)      lit_count=0 ;;
     esac
 
-    # Cap lit dots at the model's supported maximum
+    # Widen the scale rather than clamping the level: a level above the assumed
+    # ceiling proves the ceiling is wrong, and clamping would render it as maxed.
     if [ "$lit_count" -gt "$max_dots" ]; then
-        lit_count=$max_dots
+        max_dots=$lit_count
     fi
 
     lit=""
